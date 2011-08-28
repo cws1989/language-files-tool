@@ -1,5 +1,7 @@
 package langfiles;
 
+import java.awt.Toolkit;
+import java.awt.Window;
 import java.io.File;
 import java.util.List;
 import java.util.logging.Level;
@@ -47,5 +49,16 @@ public class CommonUtil {
             }
         }
         return succeedDirectoryPath;
+    }
+
+    /**
+     * Position the window to the center of the screen.
+     * @param window the JFrame or JDialog
+     */
+    public static void centerWindow(Window window) {
+        Toolkit toolkit = window.getToolkit();
+        int Xpos = (toolkit.getScreenSize().width - window.getSize().width) / 2;
+        int Ypos = (toolkit.getScreenSize().height - window.getSize().height) / 2;
+        window.setBounds(Xpos, Ypos, window.getSize().width, window.getSize().height);
     }
 }
