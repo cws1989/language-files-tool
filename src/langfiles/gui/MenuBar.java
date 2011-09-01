@@ -13,11 +13,20 @@ import javax.swing.JMenuItem;
  * The menu bar of the main frame.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
-@SuppressWarnings("serial")
-public class MenuBar extends JMenuBar {
+public class MenuBar {
 
+    /**
+     * The menu bar GUI component.
+     */
+    private JMenuBar menuBar;
+    /**
+     * The action listener for this menu bar
+     */
     private ActionListener actionListener;
 
+    /**
+     * Constructor
+     */
     public MenuBar() {
         actionListener = new ActionListener() {
 
@@ -31,12 +40,13 @@ public class MenuBar extends JMenuBar {
             }
         };
 
+        menuBar = new JMenuBar();
         JMenu menu;
 
         // File menu
         menu = new JMenu("File");
         menu.setMnemonic(KeyEvent.VK_F);
-        add(menu);
+        menuBar.add(menu);
 
         menu.add(makeMenuItem(null, "new_project", "New Project"));
         menu.addSeparator();
@@ -45,9 +55,17 @@ public class MenuBar extends JMenuBar {
         // Help menu
         menu = new JMenu("Help");
         menu.setMnemonic(KeyEvent.VK_H);
-        add(menu);
+        menuBar.add(menu);
 
         menu.add(makeMenuItem(null, "about", "About"));
+    }
+
+    /**
+     * Get the GUI display panel.
+     * @return the GUI component
+     */
+    public JMenuBar getGUI() {
+        return menuBar;
     }
 
     /**
@@ -58,15 +76,15 @@ public class MenuBar extends JMenuBar {
      * @return the JMenuItem
      */
     private JMenuItem makeMenuItem(String imagePath, String actionCommand, String altText) {
-        JMenuItem menuItem;
+        JMenuItem menuItem = new JMenuItem(altText);
+
         if (imagePath != null) {
             ImageIcon icon = new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource(imagePath)));
-            menuItem = new JMenuItem(altText, icon);
-        } else {
-            menuItem = new JMenuItem(altText);
+            menuItem.setIcon(icon);
         }
         menuItem.setActionCommand(actionCommand);
         menuItem.addActionListener(actionListener);
+
         return menuItem;
     }
 }

@@ -32,17 +32,9 @@ public class Main {
      */
     private String storagePath;
     /**
-     * The main GUI frame.
+     * The list of opened windows.
      */
-    private JFrame mainFrame;
-    /**
-     * The menu bar of the main frame.
-     */
-    private MenuBar menuBar;
-    /**
-     * The content panel of the main frame.
-     */
-    private ContentPanel contentPanel;
+    private final List<JFrame> windows = Collections.synchronizedList(new ArrayList<JFrame>());
     /**
      * Program event listener list.
      */
@@ -76,32 +68,8 @@ public class Main {
         }
 
         // GUI
-        menuBar = new MenuBar();
-        contentPanel = new ContentPanel();
-
-        mainFrame = new JFrame();
-        mainFrame.setTitle("Language Files Tool");
-        mainFrame.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/langfiles/logo.png")));
-        mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        mainFrame.addWindowListener(new WindowAdapter() {
-
-            @Override
-            public void windowClosing(WindowEvent evt) {
-                synchronized (programEventListeners) {
-                    for (ProgramEventListener listener : programEventListeners) {
-                        if (!listener.programCanCloseNow()) {
-                            return;
-                        }
-                    }
-                }
-                mainFrame.dispose();
-            }
-        });
-        mainFrame.setJMenuBar(menuBar);
-        mainFrame.setContentPane(contentPanel);
-        mainFrame.pack();
-        CommonUtil.centerWindow(mainFrame);
-        mainFrame.setVisible(true);
+        openNewWindow();
+        openNewWindow();
     }
 
     /**
@@ -128,11 +96,11 @@ public class Main {
     }
 
     /**
-     * Return the main frame object.
+     * Return the list of all opened windows.
      * @return the main frame object
      */
-    public JFrame getMainFrame() {
-        return this.mainFrame;
+    public List<JFrame> getWindows() {
+        return new ArrayList<JFrame>(this.windows);
     }
 
     /**
@@ -153,6 +121,39 @@ public class Main {
         synchronized (programEventListeners) {
             programEventListeners.remove(listener);
         }
+    }
+
+    /**
+     * Open a new window.
+     */
+    public final void openNewWindow() {
+        JFrame frame = new JFrame();
+        frame.setTitle("Language Files Tool");
+        frame.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/langfiles/logo.png")));
+        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        frame.addWindowListener(new WindowAdapter() {
+
+            @Override
+            public void windowClosing(WindowEvent evt) {
+                synchronized (programEventListeners) {
+                    for (ProgramEventListener listener : programEventListeners) {
+                        if (!listener.programCanCloseNow()) {
+                            return;
+                        }
+                    }
+                }
+                JFrame window = ((JFrame) evt.getSource());
+                window.dispose();
+                windows.remove(window);
+            }
+        });
+        frame.setJMenuBar(new MenuBar().getGUI());
+        frame.setContentPane(new ContentPanel().getGUI());
+        frame.pack();
+        CommonUtil.centerWindow(frame);
+        frame.setVisible(true);
+
+        windows.add(frame);
     }
 
     /**
