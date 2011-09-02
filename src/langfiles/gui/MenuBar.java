@@ -10,7 +10,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 
 /**
- * The menu bar of the main frame.
+ * The menu bar of the main window.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
 public class MenuBar {
@@ -41,23 +41,9 @@ public class MenuBar {
         };
 
         menuBar = new JMenuBar();
-        JMenu menu;
 
-        // File menu
-        menu = new JMenu("File");
-        menu.setMnemonic(KeyEvent.VK_F);
-        menuBar.add(menu);
-
-        menu.add(makeMenuItem(null, "new_project", "New Project"));
-        menu.addSeparator();
-        menu.add(makeMenuItem(null, "open_project", "Open Project"));
-
-        // Help menu
-        menu = new JMenu("Help");
-        menu.setMnemonic(KeyEvent.VK_H);
-        menuBar.add(menu);
-
-        menu.add(makeMenuItem(null, "about", "About"));
+        addFileMenu();
+        addHelpMenu();
     }
 
     /**
@@ -66,6 +52,34 @@ public class MenuBar {
      */
     public JMenuBar getGUI() {
         return menuBar;
+    }
+
+    /**
+     * Add file menu to menu bar.
+     */
+    protected final void addFileMenu() {
+        JMenu menu;
+
+        menu = new JMenu("File");
+        menu.setMnemonic(KeyEvent.VK_F);
+        menuBar.add(menu);
+
+        menu.add(makeMenuItem(null, "new_project", "New Project"));
+        menu.addSeparator();
+        menu.add(makeMenuItem(null, "open_project", "Open Project"));
+    }
+
+    /**
+     * Add help menu to menu bar.
+     */
+    protected final void addHelpMenu() {
+        JMenu menu;
+
+        menu = new JMenu("Help");
+        menu.setMnemonic(KeyEvent.VK_H);
+        menuBar.add(menu);
+
+        menu.add(makeMenuItem(null, "about", "About"));
     }
 
     /**

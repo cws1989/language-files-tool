@@ -1,9 +1,12 @@
 package langfiles;
 
-import java.awt.Toolkit;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import langfiles.util.CommonUtil;
+import langfiles.util.LoggingPrintStream;
+import langfiles.gui.MainWindowEventListener;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -13,19 +16,20 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
-import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import langfiles.gui.ContentPanel;
-import langfiles.gui.MenuBar;
+import javax.swing.event.ChangeEvent;
+import langfiles.gui.MainWindow;
 
 /**
  * The main class.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
-public class Main {
+public class Main implements MainWindowEventListener {
 
+    /**
+     * Singleton object of this class.
+     */
     private static Main main;
     /**
      * The directory that store the software generated files, logs etc..
@@ -34,12 +38,11 @@ public class Main {
     /**
      * The list of opened windows.
      */
-    private final List<JFrame> windows = Collections.synchronizedList(new ArrayList<JFrame>());
-    /**
-     * Program event listener list.
-     */
-    private final List<ProgramEventListener> programEventListeners = Collections.synchronizedList(new ArrayList<ProgramEventListener>());
+    private final List<MainWindow> windows = Collections.synchronizedList(new ArrayList<MainWindow>());
 
+    /**
+     * Constructor.
+     */
     private Main() {
         // storage path
         String homeDirectoryStorage = System.getProperty("user.home") + "/LanguageFilesTool/";
@@ -60,12 +63,16 @@ public class Main {
         } catch (IOException ex) {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, "Failed to set logging strategies.", ex);
         }
-
+        File systemErrorLogFile = new File(storagePath + "\\system.err.log");
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ex) {
-            Logger.getLogger(Main.class.getName()).log(Level.INFO, "Failed to set system look and feel.", ex);
+            System.setErr(new LoggingPrintStream(new FileOutputStream(systemErrorLogFile, true)));
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SecurityException ex) {
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
+
+        CommonUtil.setLookAndFeel();
 
         // GUI
         openNewWindow();
@@ -99,61 +106,17 @@ public class Main {
      * Return the list of all opened windows.
      * @return the main frame object
      */
-    public List<JFrame> getWindows() {
-        return new ArrayList<JFrame>(this.windows);
-    }
-
-    /**
-     * Add program event listener.
-     * @param listener the program event listener
-     */
-    public void addProgramEventListener(ProgramEventListener listener) {
-        synchronized (programEventListeners) {
-            programEventListeners.add(listener);
-        }
-    }
-
-    /**
-     * Remove program event listener.
-     * @param listener the program event listener
-     */
-    public void removeProgramEventListener(ProgramEventListener listener) {
-        synchronized (programEventListeners) {
-            programEventListeners.remove(listener);
-        }
+    public List<MainWindow> getWindows() {
+        return new ArrayList<MainWindow>(windows);
     }
 
     /**
      * Open a new window.
      */
     public final void openNewWindow() {
-        JFrame frame = new JFrame();
-        frame.setTitle("Language Files Tool");
-        frame.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/langfiles/logo.png")));
-        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        frame.addWindowListener(new WindowAdapter() {
-
-            @Override
-            public void windowClosing(WindowEvent evt) {
-                synchronized (programEventListeners) {
-                    for (ProgramEventListener listener : programEventListeners) {
-                        if (!listener.programCanCloseNow()) {
-                            return;
-                        }
-                    }
-                }
-                JFrame window = ((JFrame) evt.getSource());
-                window.dispose();
-                windows.remove(window);
-            }
-        });
-        frame.setJMenuBar(new MenuBar().getGUI());
-        frame.setContentPane(new ContentPanel().getGUI());
-        frame.pack();
-        CommonUtil.centerWindow(frame);
-        frame.setVisible(true);
-
-        windows.add(frame);
+        MainWindow window = new MainWindow();
+        window.addProgramEventListener(this);
+        windows.add(window);
     }
 
     /**
@@ -164,7 +127,7 @@ public class Main {
     private InputStream getLoggingProperties(String storagePath) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append("handlers = java.util.logging.FileHandler, java.util.logging.ConsoleHandler\n");
+        sb.append("handlers = java.util.logging.FileHandler, langfiles.util.WrappedConsoleHandler\n");
         sb.append(".level = INFO\n");
 
         sb.append("java.util.logging.FileHandler.pattern = ");
@@ -173,12 +136,31 @@ public class Main {
         sb.append("java.util.logging.FileHandler.append = true\n");
         sb.append("java.util.logging.FileHandler.formatter = java.util.logging.SimpleFormatter\n");
 
-        sb.append("java.util.logging.ConsoleHandler.level = CONFIG\n");
-        sb.append("java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter\n");
+        sb.append("langfiles.util.WrappedConsoleHandler.level = CONFIG\n");
+        sb.append("langfiles.util.WrappedConsoleHandler.formatter = java.util.logging.SimpleFormatter\n");
 
         return new ByteArrayInputStream(sb.toString().getBytes());
     }
 
+    @Override
+    public boolean programCanCloseNow(ChangeEvent event) {
+        return true;
+    }
+
+    @Override
+    public void programIsClosing(ChangeEvent event) {
+        if (!(event.getSource() instanceof MainWindow)) {
+            Logger.getLogger(Main.class.getName()).log(Level.INFO, "Main:programIsClosing(): event.getSource() is not a MainWindow", event);
+            return;
+        }
+        if (!windows.remove((MainWindow) event.getSource())) {
+            Logger.getLogger(Main.class.getName()).log(Level.INFO, "Main:programIsClosing(): event.getSource() not exist in windows list", event);
+        }
+    }
+
+    /**
+     * Program starter.
+     */
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
 

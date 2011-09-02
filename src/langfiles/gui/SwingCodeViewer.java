@@ -1,5 +1,6 @@
 package langfiles.gui;
 
+import langfiles.handler.CodeViewer;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -9,8 +10,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
@@ -23,15 +22,16 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
-import javax.swing.UIManager;
-import langfiles.CommonUtil;
+import langfiles.util.CommonUtil;
 import langfiles.handler.DigestedFile;
+import langfiles.handler.DigestedFile.Component;
+import langfiles.handler.Handler;
 
 /**
  * The code viewer.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
-public class CodeViewer {
+public class SwingCodeViewer implements CodeViewer {
 
     /**
      * The font of the line number text.
@@ -46,18 +46,14 @@ public class CodeViewer {
      */
     protected JPanel codePanel;
     /**
-     * The nested list that store the components of each line.
-     */
-    protected List<List<JComponent>> rowComponentList = new ArrayList<List<JComponent>>();
-    /**
      * The list that store only text components.
      */
-    protected List<JCheckBox> textComponentList = new ArrayList<JCheckBox>();
+    protected List<JComponent> textComponentList = new ArrayList<JComponent>();
 
     /**
      * Constructor.
      */
-    public CodeViewer() {
+    public SwingCodeViewer() {
         codePanel = new JPanel();
         codePanel.setLayout(new GridBagLayout());
         codePanel.setBackground(Color.white);
@@ -82,7 +78,6 @@ public class CodeViewer {
      */
     public void setText(String text) {
         codePanel.removeAll();
-        rowComponentList.clear();
         textComponentList.clear();
 
         // split the text into lines
@@ -105,27 +100,21 @@ public class CodeViewer {
             rowContainer.add(createLineNumberPanel(i + 1, lineNumberBoxWidth));
             rowContainer.add(Box.createRigidArea(new Dimension(10, 1)));
 
-            List<JComponent> lineComponentsList = new ArrayList<JComponent>();
-            rowComponentList.add(lineComponentsList);
-
             Pattern javaPattern = Pattern.compile("\"([^\"]*?(\\\\\")*)*?\"");
             Matcher matcher = javaPattern.matcher(lineString);
             while (matcher.find()) {
                 StringBuffer sb = new StringBuffer();
                 matcher.appendReplacement(sb, "");
                 JTextField beforeMatch = createTextField(sb.toString());
-                lineComponentsList.add(beforeMatch);
                 rowContainer.add(beforeMatch);
 
                 JCheckBox matched = createCheckBox(matcher.group(0));
-                lineComponentsList.add(matched);
                 rowContainer.add(matched);
                 textComponentList.add(matched);
             }
             StringBuffer sb = new StringBuffer();
             matcher.appendTail(sb);
             JTextField tail = createTextField(sb.toString());
-            lineComponentsList.add(tail);
             rowContainer.add(tail);
 
             rowContainer.add(Box.createHorizontalGlue());
@@ -135,6 +124,8 @@ public class CodeViewer {
         }
 
         JPanel padPanel = new JPanel();
+        padPanel.setMinimumSize(new Dimension(0, 0));
+        padPanel.setPreferredSize(new Dimension(0, 0));
         padPanel.setBackground(Color.white);
         c.gridy = lines.length;
         c.fill = GridBagConstraints.BOTH;
@@ -142,14 +133,66 @@ public class CodeViewer {
         codePanel.add(padPanel, c);
     }
 
-    public void setText(DigestedFile digestedFile) {
+    @Override
+    public void setCode(DigestedFile digestedFile) {
+        codePanel.removeAll();
+        textComponentList.clear();
+
+        // the width of the maximum line number
+        int lineNumberBoxWidth = CommonUtil.getFontMetrics(lineNumberFont).stringWidth(Integer.toString(digestedFile.getRowSize())) + 7;
+
+        // the grid bag constraints
+        GridBagConstraints c = new GridBagConstraints();
+        c.weightx = 1.0F;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 0;
+
+        List<List<Component>> dataList = digestedFile.getDataList();
+        for (int i = 0, iEnd = dataList.size(); i < iEnd; i++) {
+            List<Component> row = dataList.get(i);
+
+            Box rowContainer = Box.createHorizontalBox();
+
+            rowContainer.add(createLineNumberPanel(i + 1, lineNumberBoxWidth));
+            rowContainer.add(Box.createRigidArea(new Dimension(10, 1)));
+
+            for (Component component : row) {
+                switch (component.getType()) {
+                    case CODE:
+                        JTextField beforeMatch = createTextField(component.getContent());
+                        rowContainer.add(beforeMatch);
+                        break;
+                    case TEXT:
+                        JCheckBox matched = createCheckBox(component.getContent());
+                        rowContainer.add(matched);
+                        textComponentList.add(matched);
+                        break;
+                    case LANGUAGE:
+                        break;
+                }
+            }
+
+            rowContainer.add(Box.createHorizontalGlue());
+
+            c.gridy = i;
+            codePanel.add(rowContainer, c);
+        }
+
+        JPanel padPanel = new JPanel();
+        padPanel.setMinimumSize(new Dimension(0, 0));
+        padPanel.setPreferredSize(new Dimension(0, 0));
+        padPanel.setBackground(Color.white);
+        c.gridy = digestedFile.getRowSize();
+        c.fill = GridBagConstraints.BOTH;
+        c.weighty = 1.0F;
+        codePanel.add(padPanel, c);
     }
 
     /**
      * Create the line number GUI panel.
      * @param lineNumber the line number to show
      * @param panelWidth the fix width of the panel
-     * @return the line number opanel
+     * @return the line number panel
      */
     protected JPanel createLineNumberPanel(int lineNumber, int panelWidth) {
         JPanel panel = new JPanel();
@@ -181,7 +224,10 @@ public class CodeViewer {
     protected JCheckBox createCheckBox(String text) {
         JCheckBox checkBox = new JCheckBox();
 
+        //checkBox.setContentType("text/html");
+        //checkBox.setText("<span style='font-family: Tahoma; font-size: 11pt; line-height: 9px; color: red;'>" + text + "</span>");
         checkBox.setText(text);
+        checkBox.setBorder(BorderFactory.createEmptyBorder(0, 3, 0, 3));
         checkBox.setForeground(Color.red);
         Dimension size = new Dimension((int) checkBox.getPreferredSize().getWidth(), 15);
         checkBox.setPreferredSize(size);
@@ -201,13 +247,13 @@ public class CodeViewer {
         JTextField textField = new JTextField();
 
         textField.setText(text);
+        textField.setBorder(null);
         Dimension size = new Dimension((int) textField.getPreferredSize().getWidth(), 15);
         textField.setPreferredSize(size);
         textField.setMinimumSize(size);
         textField.setMaximumSize(size);
         textField.setOpaque(false);
         textField.setEditable(false);
-        textField.setBorder(null);
 
         return textField;
     }
@@ -216,15 +262,15 @@ public class CodeViewer {
      * For test purpose
      */
     public static void main(String[] args) throws IOException {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ex) {
-            Logger.getLogger(CodeViewer.class.getName()).log(Level.INFO, "Failed to set system look and feel.", ex);
-        }
+        CommonUtil.setLookAndFeel();
 
-        CodeViewer codePanel = new CodeViewer();
+        Handler handler = new Handler();
+        handler.addFile(new File("build.xml"));
+        List<DigestedFile> digestedFileLis = handler.getDigestedData();
+
+        SwingCodeViewer codePanel = new SwingCodeViewer();
         codePanel.setText(CommonUtil.readFile(new File("manifest.mf")));
-        codePanel.setText(CommonUtil.readFile(new File("build.xml")));
+        codePanel.setCode(digestedFileLis.get(0));
 
         JFrame frame = new JFrame();
         frame.setPreferredSize(new Dimension(800, 600));

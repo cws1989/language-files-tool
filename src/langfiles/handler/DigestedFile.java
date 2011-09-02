@@ -9,43 +9,86 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Immutable from outside the package.
+ * This is used by {@link DigestedFile}. This class is immutable from outside the package.
+ * @author Chan Wai Shing <cws1989@gmail.com>
  */
 public class DigestedFile implements Comparable<Object> {
 
+    /**
+     * The file represented by this object
+     */
     protected File file;
+    /**
+     * The last modified time of {@link #file}
+     */
     protected long lastModified;
+    /**
+     * If {@link #file} is not a directory, the digested data list. Stored row by row.
+     */
     protected List<List<Component>> dataList;
+    /**
+     * If {@link #file} is a directory, this will store the wanted files contained in this directory.
+     */
     protected List<DigestedFile> files;
 
+    /**
+     * Constructor.
+     * @param file
+     * @param dataList
+     * @param files 
+     */
     protected DigestedFile(File file, List<List<Component>> dataList, List<DigestedFile> files) {
         this.file = file;
         updateDataList(dataList);
         updateFiles(files);
     }
 
+    /**
+     * Update the data list of this object.
+     * @param dataList the new data list
+     */
     protected final void updateDataList(List<List<Component>> dataList) {
         lastModified = file.lastModified();
         this.dataList = dataList;
     }
 
+    /**
+     * Update the files in this object.
+     * @param files the new file list
+     */
     protected final void updateFiles(List<DigestedFile> files) {
         this.files = files;
         Collections.sort(this.files);
     }
 
+    /**
+     * Check if this is a directory
+     * @return true of it is a directory, false if not
+     */
     public boolean isDirectory() {
         return file.isDirectory();
     }
 
+    /**
+     * Get the {@link java.io.File}.
+     * @return the file
+     */
     public File getFile() {
         return file;
     }
 
+    /**
+     * Get the last modified date of the file.
+     * @return the last modified date
+     */
     public long lastModified() {
         return lastModified;
     }
 
+    /**
+     * Get a copy of the data list.
+     * @return the data list
+     */
     public List<List<Component>> getDataList() {
         List<List<Component>> returnList = new ArrayList<List<Component>>();
         for (List<Component> list : dataList) {
@@ -54,6 +97,27 @@ public class DigestedFile implements Comparable<Object> {
         return returnList;
     }
 
+    /**
+     * Get the {@link java.io.File} list if it is a directory.
+     * @return the file
+     */
+    public List<DigestedFile> getFiles() {
+        return new ArrayList<DigestedFile>(files);
+    }
+
+    /**
+     * Get the total number of row in this file
+     * @return the total number of row
+     */
+    public int getRowSize() {
+        return dataList.size();
+    }
+
+    /**
+     * Get row data by row number, start from 1.
+     * @param rowNumber the row number, start from 1
+     * @return the row data, null if that row not exist (row number > total number of rows)
+     */
     public List<Component> getRowData(int rowNumber) {
         if (rowNumber > dataList.size()) {
             return null;
@@ -149,7 +213,7 @@ public class DigestedFile implements Comparable<Object> {
                 sb.append((i + 1));
                 sb.append(": ");
 
-                for (int j = 0, jEnd = dataList.size(); j < jEnd; j++) {
+                for (int j = 0, jEnd = list.size(); j < jEnd; j++) {
                     if (j != 0) {
                         sb.append(", ");
                     }
@@ -179,26 +243,61 @@ public class DigestedFile implements Comparable<Object> {
     }
 
     /**
-     * Immutable.
+     * Component used by DigestedFile after digesting the text.
      */
     public static class Component {
 
+        /**
+         * Component type.
+         * <p>
+         * CODE: normal code<br />
+         * TEXT: string text in code, possibly take into the language file
+         * LANGUAGE: language existed in the language file
+         * </p>
+         */
         public static enum Type {
 
             CODE, TEXT, LANGUAGE
         }
+        /**
+         * Component type.
+         */
         protected Type type;
+        /**
+         * The string content of this component.
+         */
         protected String content;
 
+        /**
+         * Constructor.
+         * @param type component type
+         * @param content string content of this component
+         */
         protected Component(Type type, String content) {
             this.type = type;
             this.content = content;
         }
 
+        /**
+         * Get the component type.
+         * @return the component type
+         */
         public Type getType() {
             return type;
         }
 
+        /**
+         * Set the component type.
+         * @param type the component type
+         */
+        public void setType(Type type) {
+            this.type = type;
+        }
+
+        /**
+         * Get the string content
+         * @return the string content
+         */
         public String getContent() {
             return content;
         }
