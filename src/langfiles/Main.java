@@ -1,18 +1,23 @@
 package langfiles;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import langfiles.util.CommonUtil;
 import langfiles.util.LoggingPrintStream;
 import langfiles.gui.MainWindowEventListener;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -39,6 +44,14 @@ public class Main implements MainWindowEventListener {
      * The list of opened windows.
      */
     private final List<MainWindow> windows = Collections.synchronizedList(new ArrayList<MainWindow>());
+    /**
+     * Configuration file path
+     */
+    private String configPath;
+    /**
+     * Configuration
+     */
+    private Properties config;
 
     /**
      * Constructor.
@@ -72,10 +85,17 @@ public class Main implements MainWindowEventListener {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
 
+        // configuration
+        configPath = storagePath + "/config.ini";
+        try {
+            reloadConfig();
+        } catch (IOException ex) {
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
         CommonUtil.setLookAndFeel();
 
         // GUI
-        openNewWindow();
         openNewWindow();
     }
 
@@ -92,6 +112,40 @@ public class Main implements MainWindowEventListener {
 //            }
 //        }
         return main;
+    }
+
+    /**
+     * Get configuration properties.
+     * @return the configuration properties
+     */
+    public Properties getConfig() {
+        return config;
+    }
+
+    /**
+     * Reload configuration from file.
+     * @throws IOException error occured when reloading configuration
+     */
+    public final void reloadConfig() throws IOException {
+        File configFile = new File(configPath);
+        if (!configFile.exists()) {
+            configFile.createNewFile();
+        }
+
+        InputStream in = new BufferedInputStream(new FileInputStream(configPath));
+        config = new Properties();
+        config.load(in);
+        in.close();
+    }
+
+    /**
+     * Save configuration to file.
+     */
+    public void saveConfig() throws IOException {
+        File configFile = new File(configPath);
+        OutputStream out = new BufferedOutputStream(new FileOutputStream(configFile));
+        config.store(out, "You are not supposed to edit this file directly.");
+        out.close();
     }
 
     /**

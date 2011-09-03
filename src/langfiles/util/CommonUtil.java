@@ -27,6 +27,46 @@ public class CommonUtil {
     }
 
     /**
+     * Bold font.
+     * @param font the font
+     * @param bold true to bold, false unbold
+     * @return the bolded/unbolded font
+     */
+    public static Font boldFont(Font font, boolean bold) {
+        if ((font.getStyle() & Font.BOLD) != 0) {
+            if (!bold) {
+                return font.deriveFont(font.getStyle() ^ Font.BOLD);
+            }
+        } else {
+            if (bold) {
+                return font.deriveFont(font.getStyle() | Font.BOLD);
+            }
+        }
+        return font;
+    }
+
+    /**
+     * Change font size.
+     * @param font the font
+     * @param fontSize the font size to change to
+     * @return the font that changed size
+     */
+    public static Font changeFontSize(Font font, int fontSize) {
+        return font.deriveFont((float) fontSize);
+    }
+
+    /**
+     * Change font size and bold/unbold font
+     * @param font the font
+     * @param bold true to bold, false unbold
+     * @param fontSize the font size to change to
+     * @return the changed font
+     */
+    public static Font deriveFont(Font font, boolean bold, int fontSize) {
+        return changeFontSize(boldFont(font, bold), fontSize);
+    }
+
+    /**
      * Set UI look & feel to system look & feel.
      */
     public static void setLookAndFeel() {
