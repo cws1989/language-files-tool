@@ -1,17 +1,26 @@
 package langfiles.gui;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.BorderFactory;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JSplitPane;
 import javax.swing.event.ChangeEvent;
-import langfiles.util.CommonUtil;
+import langfiles.Main;
 
 /**
  * The main window of the program.
@@ -28,9 +37,17 @@ public class MainWindow {
      */
     private MenuBar menuBar;
     /**
-     * The content panel of the window.
+     * Tool bar
      */
-    private ContentPanel contentPanel;
+    private ToolBar toolBar;
+    /**
+     * The project panel
+     */
+    private ProjectPanel projectPanel;
+    /**
+     * The code panel
+     */
+    private CodePanel codePanel;
     /**
      * Program event listener list.
      */
@@ -84,14 +101,43 @@ public class MainWindow {
                  * window menu && tool bar
                  */
                 else if (cmd.equals("show_icon_text")) {
-                    contentPanel.getToolBar().setShowIconText(e.getWhen() == 1);
-                    menuBar.setShowIconText(e.getWhen() == 1);
+                    boolean showIconText = e.getWhen() == 1;
+                    Main main = Main.getInstance();
+                    main.getConfig().setProperty("window_show_icon_text", Boolean.toString(showIconText));
+                    try {
+                        main.saveConfig();
+                    } catch (IOException ex) {
+                        Logger.getLogger(MainWindow.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    getToolBar().setShowIconText(showIconText);
+                    menuBar.setShowIconText(showIconText);
                 }
             }
         };
 
         menuBar = new MenuBar(this);
-        contentPanel = new ContentPanel(this);
+
+        //<editor-fold defaultstate="collapsed" desc="content panel">
+        JPanel contentPanel = new JPanel();
+        contentPanel.setPreferredSize(new Dimension(1000, 630));
+        contentPanel.setLayout(new BorderLayout());
+
+        toolBar = new ToolBar(this);
+        contentPanel.add(toolBar.getGUI(), BorderLayout.NORTH);
+
+        JSplitPane splitPane = new JSplitPane();
+        Color panelBackground = splitPane.getBackground();
+        splitPane.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, panelBackground.brighter()), BorderFactory.createMatteBorder(1, 0, 0, 0, panelBackground.darker())));
+        splitPane.setDividerSize(2);
+        splitPane.setDividerLocation(250);
+        contentPanel.add(splitPane, BorderLayout.CENTER);
+
+        projectPanel = new ProjectPanel();
+        splitPane.setLeftComponent(projectPanel.getGUI());
+
+        codePanel = new CodePanel();
+        splitPane.setRightComponent(codePanel.getGUI());
+        //</editor-fold>
 
         window = new JFrame();
         window.setTitle("Language Files Tool");
@@ -117,9 +163,10 @@ public class MainWindow {
             }
         });
         window.setJMenuBar(menuBar.getGUI());
-        window.setContentPane(contentPanel.getGUI());
+        window.setContentPane(contentPanel);
         window.pack();
-        CommonUtil.centerWindow(window);
+        window.setLocationByPlatform(true);
+        //CommonUtil.centerWindow(window);
         window.setVisible(true);
     }
 
@@ -140,11 +187,27 @@ public class MainWindow {
     }
 
     /**
-     * Get the content panel.
-     * @return the content panel
+     * Get the tool bar.
+     * @return the tool bar
      */
-    public ContentPanel getContentPanel() {
-        return contentPanel;
+    public ToolBar getToolBar() {
+        return toolBar;
+    }
+
+    /**
+     * Get the project panel.
+     * @return the project panel
+     */
+    public ProjectPanel getProjectPanel() {
+        return projectPanel;
+    }
+
+    /**
+     * Get the code panel.
+     * @return the code panel
+     */
+    public CodePanel getCodePanel() {
+        return codePanel;
     }
 
     /**

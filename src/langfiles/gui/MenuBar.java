@@ -9,6 +9,7 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import langfiles.Main;
 
 /**
  * The menu bar of the main window.
@@ -112,7 +113,10 @@ public class MenuBar {
         menu.setMnemonic(KeyEvent.VK_W);
         menuBar.add(menu);
 
-        menu.add(showIconTextMenuItem = makeCheckBoxMenuItem(null, "show_icon_text", "Show Icon Text", true));
+        String window_show_icon_text = Main.getInstance().getConfig().getProperty("window_show_icon_text");
+        boolean isWindowShowIconText = window_show_icon_text != null ? window_show_icon_text.equals("true") : true;
+
+        menu.add(showIconTextMenuItem = makeCheckBoxMenuItem(null, "show_icon_text", "Show Icon Text", isWindowShowIconText));
         showIconTextMenuItem.removeActionListener(mainWindow.getActionListener());
         showIconTextMenuItem.addActionListener(new ActionListener() {
 
@@ -123,6 +127,8 @@ public class MenuBar {
                 MenuBar.this.mainWindow.getActionListener().actionPerformed(actionEvent);
             }
         });
+
+        setShowIconText(isWindowShowIconText);
     }
 
     /**

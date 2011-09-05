@@ -16,6 +16,7 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
+import langfiles.Main;
 import langfiles.util.CommonUtil;
 
 /**
@@ -25,9 +26,9 @@ import langfiles.util.CommonUtil;
 public class ToolBar {
 
     /**
-     * ContentPanel
+     * MainWindow
      */
-    private ContentPanel contentPanel;
+    private MainWindow mainWindow;
     /**
      * The tool bar.
      */
@@ -45,20 +46,23 @@ public class ToolBar {
     /**
      * Constructor
      */
-    public ToolBar(ContentPanel contentPanel) {
-        this.contentPanel = contentPanel;
+    public ToolBar(MainWindow mainWindow) {
+        this.mainWindow = mainWindow;
+
+        String window_show_icon_text = Main.getInstance().getConfig().getProperty("window_show_icon_text");
+        boolean isWindowShowIconText = window_show_icon_text != null ? window_show_icon_text.equals("true") : true;
 
         popupMenu = new JPopupMenu();
         showIconTextMenuItem = new JCheckBoxMenuItem("Show Icon Text");
         showIconTextMenuItem.setActionCommand("show_icon_text");
-        showIconTextMenuItem.setSelected(true);
+        showIconTextMenuItem.setSelected(isWindowShowIconText);
         showIconTextMenuItem.addActionListener(new ActionListener() {
 
             @Override
             public void actionPerformed(ActionEvent e) {
                 long when = showIconTextMenuItem.isSelected() ? 1 : 0;
                 ActionEvent actionEvent = new ActionEvent(e.getSource(), e.getID(), e.getActionCommand(), when, e.getModifiers());
-                ToolBar.this.contentPanel.getActionListener().actionPerformed(actionEvent);
+                ToolBar.this.mainWindow.getActionListener().actionPerformed(actionEvent);
             }
         });
         popupMenu.add(showIconTextMenuItem);
@@ -79,6 +83,8 @@ public class ToolBar {
         componentsText = new HashMap<Component, String>();
 
         addButtons();
+
+        setShowIconText(isWindowShowIconText);
     }
 
     /**
@@ -88,12 +94,12 @@ public class ToolBar {
         toolBar.add(createButton("/langfiles/gui/images/ToolBar/new_project.png", "new_project", "New Project", "New Project"));
         toolBar.add(createButton("/langfiles/gui/images/ToolBar/close_project.png", "close_project", "Close Project", "Close Project"));
         toolBar.addSeparator();
-        toolBar.add(createButton("/langfiles/gui/images/ToolBar/add_folder.png", "add_folder", "Add Folder", "Add Folder"));
-        toolBar.add(createButton("/langfiles/gui/images/ToolBar/add_file.png", "add_file", "Add File", "Add File"));
-        toolBar.add(createButton("/langfiles/gui/images/ToolBar/remove.png", "remove", "Remove", "Remove"));
+        toolBar.add(createButton("/langfiles/gui/images/ToolBar/add_folder.png", "add_folder", "Add Folder to Project", "Add Folder"));
+        toolBar.add(createButton("/langfiles/gui/images/ToolBar/add_file.png", "add_file", "Add File to Project", "Add File"));
+        toolBar.add(createButton("/langfiles/gui/images/ToolBar/remove.png", "remove", "Remove from Project", "Remove"));
         toolBar.addSeparator();
-        toolBar.add(createButton("/langfiles/gui/images/ToolBar/properties.png", "properties", "Properties", "Properties"));
-        toolBar.add(createButton("/langfiles/gui/images/ToolBar/commit.png", "commit", "Commit", "Commit"));
+        toolBar.add(createButton("/langfiles/gui/images/ToolBar/properties.png", "properties", "Project Properties", "Properties"));
+        toolBar.add(createButton("/langfiles/gui/images/ToolBar/commit.png", "commit", "Commit Project", "Commit"));
         toolBar.add(createButton("/langfiles/gui/images/ToolBar/refresh.png", "refresh", "Refresh", "Refresh"));
         toolBar.addSeparator();
         toolBar.add(createButton("/langfiles/gui/images/ToolBar/regular_expression_tester.png", "regular_expression_tester", "Regular Expression Tester", "RegExp Tester"));
@@ -106,7 +112,7 @@ public class ToolBar {
      * Set the visibility of the tool bar text
      * @param visible true to make visible, false to make invisible
      */
-    public void setShowIconText(boolean visible) {
+    public final void setShowIconText(boolean visible) {
         showIconTextMenuItem.setSelected(visible);
 
         Component[] components = toolBar.getComponents();
@@ -152,7 +158,7 @@ public class ToolBar {
         button.setHorizontalTextPosition(JButton.CENTER);
         button.setFont(CommonUtil.deriveFont(button.getFont(), false, 10));
         button.setFocusable(false);
-        button.addActionListener(contentPanel.getActionListener());
+        button.addActionListener(mainWindow.getActionListener());
 
         if (imgLocation != null) {
             if (altText != null) {
@@ -189,7 +195,7 @@ public class ToolBar {
         button.setHorizontalTextPosition(JButton.CENTER);
         button.setFont(CommonUtil.deriveFont(button.getFont(), false, 10));
         button.setFocusable(false);
-        button.addActionListener(contentPanel.getActionListener());
+        button.addActionListener(mainWindow.getActionListener());
 
         if (imgLocation != null) {
             if (altText != null) {

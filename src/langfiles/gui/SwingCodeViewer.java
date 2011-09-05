@@ -56,12 +56,16 @@ public class SwingCodeViewer implements CodeViewer {
     public SwingCodeViewer() {
         codePanel = new JPanel();
         codePanel.setLayout(new GridBagLayout());
-        codePanel.setBackground(Color.white);
+        codePanel.setOpaque(false);
+        codePanel.setBorder(null);
 
         scrollPane = new JScrollPane();
+        scrollPane.setOpaque(false);
         scrollPane.getVerticalScrollBar().setUnitIncrement(20);
         scrollPane.getHorizontalScrollBar().setUnitIncrement(20);
+        scrollPane.getViewport().setOpaque(false);
         scrollPane.setViewportView(codePanel);
+        scrollPane.setBorder(null);
     }
 
     /**
@@ -96,6 +100,7 @@ public class SwingCodeViewer implements CodeViewer {
             String lineString = lines[i];
 
             Box rowContainer = Box.createHorizontalBox();
+            rowContainer.setOpaque(false);
 
             rowContainer.add(createLineNumberPanel(i + 1, lineNumberBoxWidth));
             rowContainer.add(Box.createRigidArea(new Dimension(10, 1)));
@@ -126,7 +131,7 @@ public class SwingCodeViewer implements CodeViewer {
         JPanel padPanel = new JPanel();
         padPanel.setMinimumSize(new Dimension(0, 0));
         padPanel.setPreferredSize(new Dimension(0, 0));
-        padPanel.setBackground(Color.white);
+        padPanel.setOpaque(false);
         c.gridy = lines.length;
         c.fill = GridBagConstraints.BOTH;
         c.weighty = 1.0F;
@@ -181,7 +186,7 @@ public class SwingCodeViewer implements CodeViewer {
         JPanel padPanel = new JPanel();
         padPanel.setMinimumSize(new Dimension(0, 0));
         padPanel.setPreferredSize(new Dimension(0, 0));
-        padPanel.setBackground(Color.white);
+        padPanel.setOpaque(false);
         c.gridy = digestedFile.getRowSize();
         c.fill = GridBagConstraints.BOTH;
         c.weighty = 1.0F;
@@ -248,7 +253,8 @@ public class SwingCodeViewer implements CodeViewer {
 
         textField.setText(text);
         textField.setBorder(null);
-        Dimension size = new Dimension((int) textField.getPreferredSize().getWidth(), 15);
+        // bad +1
+        Dimension size = new Dimension((int) textField.getPreferredSize().getWidth() + 1, 15);
         textField.setPreferredSize(size);
         textField.setMinimumSize(size);
         textField.setMaximumSize(size);

@@ -94,7 +94,12 @@ public class Main implements MainWindowEventListener {
         }
 
         CommonUtil.setLookAndFeel();
+    }
 
+    /**
+     * Initialize those need this Main object (e.g. create GUI).
+     */
+    private void initialize() {
         // GUI
         openNewWindow();
     }
@@ -221,6 +226,7 @@ public class Main implements MainWindowEventListener {
             @Override
             public void run() {
                 Main.main = new Main();
+                main.initialize();
             }
         });
     }
