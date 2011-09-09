@@ -1,6 +1,5 @@
 package langfiles.gui;
 
-import langfiles.handler.CodeViewer;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -23,9 +22,10 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import langfiles.util.CommonUtil;
-import langfiles.handler.DigestedFile;
-import langfiles.handler.DigestedFile.Component;
-import langfiles.handler.Handler;
+import langfiles.project.CodeViewer;
+import langfiles.project.DigestedFile;
+import langfiles.project.DigestedFile.Component;
+import langfiles.project.Project;
 
 /**
  * The code viewer.
@@ -270,7 +270,7 @@ public class SwingCodeViewer implements CodeViewer {
     public static void main(String[] args) throws IOException {
         CommonUtil.setLookAndFeel();
 
-        Handler handler = new Handler();
+        Project handler = new Project();
         handler.addFile(new File("build.xml"));
         List<DigestedFile> digestedFileLis = handler.getDigestedData();
 

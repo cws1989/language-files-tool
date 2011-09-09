@@ -43,6 +43,9 @@ import javax.swing.SpringLayout;
  */
 public class SpringUtilities {
 
+    private SpringUtilities() {
+    }
+
     /**
      * A debugging utility that prints to stdout the component's
      * minimum, preferred, and maximum sizes.

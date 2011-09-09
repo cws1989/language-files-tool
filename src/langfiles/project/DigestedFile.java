@@ -1,4 +1,4 @@
-package langfiles.handler;
+package langfiles.project;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -237,7 +237,7 @@ public class DigestedFile implements Comparable<Object> {
             object.dataList = dataList;
             object.files = files;
         } catch (CloneNotSupportedException ex) {
-            Logger.getLogger(Handler.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
         }
         return object;
     }
@@ -351,7 +351,7 @@ public class DigestedFile implements Comparable<Object> {
                 object.type = type;
                 object.content = content;
             } catch (CloneNotSupportedException ex) {
-                Logger.getLogger(Handler.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
             }
             return object;
         }

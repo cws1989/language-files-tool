@@ -1,0 +1,149 @@
+package langfiles.gui;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.LayoutManager;
+import java.awt.Toolkit;
+import java.io.IOException;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JSeparator;
+import javax.swing.border.EmptyBorder;
+import langfiles.util.CommonUtil;
+
+/**
+ *
+ * @author Chan Wai Shing <cws1989@gmail.com>
+ */
+@SuppressWarnings("serial")
+public class JTitledPanel extends JPanel {
+
+    protected JLabel headerTitle;
+    protected JPanel headerPanel;
+    protected JPanel contentPanel;
+    protected JPanel footerPanel;
+    protected JPanel headerBorderPanel;
+    protected JPanel footerBorderPanel;
+
+    public JTitledPanel() {
+        super();
+        titledPanelInitialize();
+    }
+
+    public JTitledPanel(LayoutManager layout, boolean isDoubleBuffered) {
+        super(layout, isDoubleBuffered);
+        titledPanelInitialize();
+    }
+
+    public JTitledPanel(LayoutManager layout) {
+        super(layout);
+        titledPanelInitialize();
+    }
+
+    public JTitledPanel(boolean isDoubleBuffered) {
+        super(isDoubleBuffered);
+        titledPanelInitialize();
+    }
+
+    protected final void titledPanelInitialize() {
+        setLayout(new BorderLayout());
+
+        //<editor-fold defaultstate="collapsed" desc="header">
+        headerTitle = new JLabel();
+        headerTitle.setIconTextGap(8);
+        headerTitle.setFont(headerTitle.getFont().deriveFont(20F));
+
+        headerPanel = new JPanel();
+        headerPanel.setBorder(new EmptyBorder(10, 10, 7, 10));
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.X_AXIS));
+        headerPanel.add(headerTitle);
+        headerPanel.add(Box.createHorizontalGlue());
+
+        headerBorderPanel = new JPanel();
+        headerBorderPanel.setLayout(new BorderLayout());
+        headerBorderPanel.add(headerPanel, BorderLayout.CENTER);
+        headerBorderPanel.add(new JSeparator(), BorderLayout.SOUTH);
+        //</editor-fold>
+
+        //<editor-fold defaultstate="collapsed" desc="content">
+        contentPanel = new JPanel();
+        contentPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        //</editor-fold>
+
+        //<editor-fold defaultstate="collapsed" desc="footer">
+        footerPanel = new JPanel();
+        footerPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
+        footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.X_AXIS));
+
+        footerBorderPanel = new JPanel();
+        footerBorderPanel.setLayout(new BorderLayout());
+        footerBorderPanel.add(new JSeparator(), BorderLayout.NORTH);
+        footerBorderPanel.add(footerPanel, BorderLayout.CENTER);
+        //</editor-fold>
+
+        add(headerBorderPanel, BorderLayout.NORTH);
+        add(contentPanel, BorderLayout.CENTER);
+        add(footerBorderPanel, BorderLayout.SOUTH);
+    }
+
+    public void setTitle(String title, Icon icon) {
+        if (title != null) {
+            headerTitle.setText(title);
+        }
+        if (icon != null) {
+            headerTitle.setIcon(icon);
+        }
+    }
+
+    public void setFooterPanelVisibility(boolean visible) {
+        if (visible) {
+            if (getComponents().length == 2) {
+                add(footerBorderPanel, BorderLayout.SOUTH);
+            }
+        } else {
+            remove(footerBorderPanel);
+        }
+    }
+
+    public JLabel getHeaderTitle() {
+        return headerTitle;
+    }
+
+    public JPanel getHeaderPanel() {
+        return headerPanel;
+    }
+
+    public JPanel getContentPanel() {
+        return contentPanel;
+    }
+
+    public JPanel getFooterPanel() {
+        return footerPanel;
+    }
+
+    public static void main(String[] args) throws IOException {
+        CommonUtil.setLookAndFeel();
+
+        JTitledPanel panel = new JTitledPanel();
+        panel.setTitle("Titled Panel", new ImageIcon(Toolkit.getDefaultToolkit().getImage(JTitledPanel.class.getResource("/langfiles/logo.png"))));
+        panel.getFooterPanel().add(Box.createHorizontalGlue());
+        panel.getFooterPanel().add(new JButton("OK"));
+        panel.getFooterPanel().add(Box.createRigidArea(new Dimension(5, 5)));
+        panel.getFooterPanel().add(new JButton("Cancel"));
+        panel.getFooterPanel().add(Box.createHorizontalGlue());
+
+        JFrame frame = new JFrame();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setContentPane(panel);
+        frame.pack();
+        frame.setLocationByPlatform(true);
+        frame.setVisible(true);
+    }
+}

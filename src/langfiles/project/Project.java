@@ -1,4 +1,4 @@
-package langfiles.handler;
+package langfiles.project;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,14 +11,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import langfiles.project.DigestedFile.Component;
 import langfiles.util.CommonUtil;
-import langfiles.handler.DigestedFile.Component;
 
 /**
  * The project handler.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
-public class Handler {
+public class Project {
 
     /**
      * The list of allowed file extensions.
@@ -32,7 +32,7 @@ public class Handler {
     /**
      * Constructor.
      */
-    public Handler() {
+    public Project() {
     }
 
     /**
@@ -114,11 +114,11 @@ public class Handler {
     }
 
     /**
-     * Add directory and all files inside recursively to the handler.
-     * @param directory the directory
+     * Add folder and all files inside recursively to the handler.
+     * @param folder the directory
      */
-    public void addDirectory(File directory) {
-        List<File> fileList = CommonUtil.getFiles(directory, allowedExtensionList);
+    public void addFolder(File folder) {
+        List<File> fileList = CommonUtil.getFiles(folder, allowedExtensionList);
         for (File file : fileList) {
             // compare to existing file list to check duplication
             boolean existAlready = false;
@@ -151,7 +151,7 @@ public class Handler {
                 Collections.sort(digestedData);
             }
         } catch (IOException ex) {
-            Logger.getLogger(Handler.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 

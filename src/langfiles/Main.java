@@ -25,6 +25,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import langfiles.gui.MainWindow;
+import langfiles.util.Config;
 
 /**
  * The main class.
@@ -51,7 +52,7 @@ public class Main implements MainWindowEventListener {
     /**
      * Configuration
      */
-    private Properties config;
+    private Config config;
 
     /**
      * Constructor.
@@ -88,10 +89,24 @@ public class Main implements MainWindowEventListener {
         // configuration
         configPath = storagePath + "/config.ini";
         try {
-            reloadConfig();
+            config = new MainConfig(configPath);
         } catch (IOException ex) {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                if (config.isChanged()) {
+                    try {
+                        config.save();
+                    } catch (IOException ex) {
+                        Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+            }
+        }));
 
         CommonUtil.setLookAndFeel();
     }
@@ -120,37 +135,11 @@ public class Main implements MainWindowEventListener {
     }
 
     /**
-     * Get configuration properties.
-     * @return the configuration properties
+     * Get configuration.
+     * @return the configuration
      */
-    public Properties getConfig() {
+    public Config getConfig() {
         return config;
-    }
-
-    /**
-     * Reload configuration from file.
-     * @throws IOException error occured when reloading configuration
-     */
-    public final void reloadConfig() throws IOException {
-        File configFile = new File(configPath);
-        if (!configFile.exists()) {
-            configFile.createNewFile();
-        }
-
-        InputStream in = new BufferedInputStream(new FileInputStream(configPath));
-        config = new Properties();
-        config.load(in);
-        in.close();
-    }
-
-    /**
-     * Save configuration to file.
-     */
-    public void saveConfig() throws IOException {
-        File configFile = new File(configPath);
-        OutputStream out = new BufferedOutputStream(new FileOutputStream(configFile));
-        config.store(out, "You are not supposed to edit this file directly.");
-        out.close();
     }
 
     /**
@@ -214,6 +203,69 @@ public class Main implements MainWindowEventListener {
         }
         if (!windows.remove((MainWindow) event.getSource())) {
             Logger.getLogger(Main.class.getName()).log(Level.INFO, "Main:programIsClosing(): event.getSource() not exist in windows list", event);
+        }
+    }
+
+    private class MainConfig implements Config {
+
+        private String configPath;
+        private Properties config;
+        private boolean isChanged = false;
+        private List<ConfigChange> configChanges;
+
+        private MainConfig(String configPath) throws IOException {
+            this.configPath = configPath;
+            this.configChanges = new ArrayList<ConfigChange>();
+            reload();
+        }
+
+        @Override
+        public final void reload() throws IOException {
+            File configFile = new File(configPath);
+            if (!configFile.exists()) {
+                configFile.createNewFile();
+            }
+
+            InputStream in = new BufferedInputStream(new FileInputStream(configPath));
+            config = new Properties();
+            config.load(in);
+            in.close();
+        }
+
+        @Override
+        public final void save() throws IOException {
+            File configFile = new File(configPath);
+            OutputStream out = new BufferedOutputStream(new FileOutputStream(configFile));
+            config.storeToXML(out, "You are not supposed to edit this file directly.");
+            out.close();
+
+            configChanges.clear();
+            isChanged = false;
+        }
+
+        @Override
+        public String getProperty(String key) {
+            return config.getProperty(key);
+        }
+
+        @Override
+        public Object setProperty(String key, String value) {
+            String existingValue = (String) config.setProperty(key, value);
+            if (existingValue == null || !existingValue.equals(value)) {
+                configChanges.add(new ConfigChange(key, value));
+                isChanged = true;
+            }
+            return config.setProperty(key, value);
+        }
+
+        @Override
+        public List<ConfigChange> getChanges() {
+            return new ArrayList<ConfigChange>(configChanges);
+        }
+
+        @Override
+        public boolean isChanged() {
+            return isChanged;
         }
     }
 

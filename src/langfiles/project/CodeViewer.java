@@ -1,4 +1,4 @@
-package langfiles.handler;
+package langfiles.project;
 
 /**
  * Code Viewer interface.

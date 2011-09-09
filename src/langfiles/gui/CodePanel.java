@@ -5,8 +5,8 @@ import java.io.File;
 import java.util.List;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
-import langfiles.handler.DigestedFile;
-import langfiles.handler.Handler;
+import langfiles.project.DigestedFile;
+import langfiles.project.Project;
 
 /**
  * The code panel.
@@ -28,7 +28,7 @@ public class CodePanel {
         codePanel.setBackground(codePanel.getBackground().brighter());
 
         //<editor-fold defaultstate="collapsed" desc="for test purpose">
-        Handler handler = new Handler();
+        Project handler = new Project();
         handler.addFile(new File("build.xml"));
         handler.addFile(new File("manifest.mf"));
         List<DigestedFile> digestedFileLis = handler.getDigestedData();

@@ -1,12 +1,7 @@
 package langfiles.gui;
 
-import java.awt.Cursor;
-import java.awt.Desktop;
+import java.awt.Dimension;
 import java.awt.Frame;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -40,19 +35,28 @@ public class About {
         panel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
+        //<editor-fold defaultstate="collapsed" desc="titleBox">
         Box titleBox = Box.createHorizontalBox();
-        panel.add(titleBox);
+        titleBox.setBorder(BorderFactory.createEmptyBorder(0, 10, 12, 10));
+
         JLabel titleLabel = new JLabel("Language Files Tool");
         titleLabel.setFont(CommonUtil.deriveFont(titleLabel.getFont(), true, 14));
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 10, 12, 10));
         titleBox.add(titleLabel);
+
+        titleBox.add(Box.createRigidArea(new Dimension(10, 10)));
+
+        JLabel versionLabel = new JLabel("v1.0");
+        versionLabel.setBorder(BorderFactory.createEmptyBorder(titleLabel.getPreferredSize().height - versionLabel.getPreferredSize().height, 0, 0, 0));
+        titleBox.add(versionLabel);
+
         titleBox.add(Box.createHorizontalGlue());
+        //</editor-fold>
+        panel.add(titleBox);
 
-
+        //<editor-fold defaultstate="collapsed" desc="contentPanel">
         JPanel contentPanel = new JPanel();
         contentPanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 5, 0));
         contentPanel.setLayout(new SpringLayout());
-        panel.add(contentPanel);
 
         JLabel authorTitleLabel = new JLabel("Contributor: ");
         authorTitleLabel.setFont(CommonUtil.deriveFont(authorTitleLabel.getFont(), false, 12));
@@ -64,53 +68,28 @@ public class About {
         JLabel contactTitleLabel = new JLabel("Email: ");
         contactTitleLabel.setFont(CommonUtil.deriveFont(contactTitleLabel.getFont(), false, 12));
         contentPanel.add(contactTitleLabel);
-        JLabel contactLabel = new JLabel("<html><a href='mailto:cws1989@gmail.com'>cws1989@gmail.com</a></html>");
-        contactLabel.addMouseListener(new MouseAdapter() {
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                Desktop desktop = Desktop.getDesktop();
-                if (desktop.isSupported(Desktop.Action.MAIL)) {
-                    try {
-                        desktop.mail(new URI("mailto:cws1989@gmail.com"));
-                    } catch (IOException ex) {
-                        Logger.getLogger(About.class.getName()).log(Level.SEVERE, null, ex);
-                    } catch (URISyntaxException ex) {
-                        Logger.getLogger(About.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }
-            }
-        });
-        contactLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        contactLabel.setFont(CommonUtil.deriveFont(contactLabel.getFont(), false, 12));
-        contentPanel.add(contactLabel);
+        try {
+            JWebLinkLabel contactLabel = new JWebLinkLabel("mailto:cws1989@gmail.com", "cws1989@gmail.com");
+            contactLabel.setFont(CommonUtil.deriveFont(contactLabel.getFont(), false, 12));
+            contentPanel.add(contactLabel);
+        } catch (URISyntaxException ex) {
+            Logger.getLogger(About.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
         JLabel webLinkTitleLabel = new JLabel("Web: ");
         webLinkTitleLabel.setFont(CommonUtil.deriveFont(webLinkTitleLabel.getFont(), false, 12));
         contentPanel.add(webLinkTitleLabel);
-        JLabel webLinkLabel = new JLabel("<html><a href='http://language-files-tool.googlecode.com'>http://language-files-tool.googlecode.com</a></html>");
-        webLinkLabel.addMouseListener(new MouseAdapter() {
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                Desktop desktop = Desktop.getDesktop();
-                if (desktop.isSupported(Desktop.Action.BROWSE)) {
-                    try {
-                        desktop.browse(new URI("http://language-files-tool.googlecode.com"));
-                    } catch (IOException ex) {
-                        Logger.getLogger(About.class.getName()).log(Level.SEVERE, null, ex);
-                    } catch (URISyntaxException ex) {
-                        Logger.getLogger(About.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }
-            }
-        });
-        webLinkLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        webLinkLabel.setFont(CommonUtil.deriveFont(webLinkLabel.getFont(), false, 12));
-        contentPanel.add(webLinkLabel);
+        try {
+            JWebLinkLabel webLinkLabel = new JWebLinkLabel("http://language-files-tool.googlecode.com", "http://language-files-tool.googlecode.com");
+            webLinkLabel.setFont(CommonUtil.deriveFont(webLinkLabel.getFont(), false, 12));
+            contentPanel.add(webLinkLabel);
+        } catch (URISyntaxException ex) {
+            Logger.getLogger(About.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
         SpringUtilities.makeCompactGrid(contentPanel, 3, 2, 0, 0, 10, 6);
-
+        //</editor-fold>
+        panel.add(contentPanel);
 
         dialog = new JDialog(frame, "About", true);
         dialog.add(panel);

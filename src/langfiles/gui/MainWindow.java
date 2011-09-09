@@ -21,6 +21,7 @@ import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.event.ChangeEvent;
 import langfiles.Main;
+import langfiles.util.Config;
 
 /**
  * The main window of the program.
@@ -103,9 +104,10 @@ public class MainWindow {
                 else if (cmd.equals("show_icon_text")) {
                     boolean showIconText = e.getWhen() == 1;
                     Main main = Main.getInstance();
-                    main.getConfig().setProperty("window_show_icon_text", Boolean.toString(showIconText));
+                    Config config = main.getConfig();
+                    config.setProperty("window_show_icon_text", Boolean.toString(showIconText));
                     try {
-                        main.saveConfig();
+                        config.save();
                     } catch (IOException ex) {
                         Logger.getLogger(MainWindow.class.getName()).log(Level.SEVERE, null, ex);
                     }
