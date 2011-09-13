@@ -18,16 +18,25 @@ import javax.swing.border.EmptyBorder;
 import langfiles.util.CommonUtil;
 
 /**
- *
+ * The titled panel for common use.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
 @SuppressWarnings("serial")
 public class JTitledPanel extends JPanel {
 
+    /**
+     * The title label in {@link #headerPanel}.
+     */
     protected JLabel headerTitle;
+    /**
+     * Panels.
+     */
     protected JPanel headerPanel;
     protected JPanel contentPanel;
     protected JPanel footerPanel;
+    /**
+     * Panels with border.
+     */
     protected JPanel headerBorderPanel;
     protected JPanel footerBorderPanel;
 
@@ -51,6 +60,9 @@ public class JTitledPanel extends JPanel {
         titledPanelInitialize();
     }
 
+    /**
+     * Initialize the titled panel.
+     */
     protected final void titledPanelInitialize() {
         setLayout(new BorderLayout());
 
@@ -93,15 +105,20 @@ public class JTitledPanel extends JPanel {
         add(footerBorderPanel, BorderLayout.SOUTH);
     }
 
+    /**
+     * Set the text of the header title label.
+     * @param title the title
+     * @param icon the icon
+     */
     public void setTitle(String title, Icon icon) {
-        if (title != null) {
-            headerTitle.setText(title);
-        }
-        if (icon != null) {
-            headerTitle.setIcon(icon);
-        }
+        headerTitle.setText(title);
+        headerTitle.setIcon(icon);
     }
 
+    /**
+     * Set the visibility of the footer panel.
+     * @param visible true to set visible, false to set invisible
+     */
     public void setFooterPanelVisibility(boolean visible) {
         if (visible) {
             if (getComponents().length == 2) {
@@ -112,22 +129,41 @@ public class JTitledPanel extends JPanel {
         }
     }
 
+    /**
+     * Get the header title label.
+     * @return the label
+     */
     public JLabel getHeaderTitle() {
         return headerTitle;
     }
 
+    /**
+     * Get the header panel.
+     * @return the panel
+     */
     public JPanel getHeaderPanel() {
         return headerPanel;
     }
 
+    /**
+     * Get the content panel.
+     * @return the panel
+     */
     public JPanel getContentPanel() {
         return contentPanel;
     }
 
+    /**
+     * Get the footer panel.
+     * @return the panel
+     */
     public JPanel getFooterPanel() {
         return footerPanel;
     }
 
+    /**
+     * For test/development purpose.
+     */
     public static void main(String[] args) throws IOException {
         CommonUtil.setLookAndFeel();
 

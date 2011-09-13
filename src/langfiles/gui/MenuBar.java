@@ -12,7 +12,7 @@ import javax.swing.JMenuItem;
 import langfiles.Main;
 
 /**
- * The menu bar of the main window.
+ * The menu bar of the MainWindow.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
 public class MenuBar {
@@ -31,7 +31,7 @@ public class MenuBar {
     private JCheckBoxMenuItem showIconTextMenuItem;
 
     /**
-     * Constructor
+     * Constructor.
      */
     public MenuBar(MainWindow mainWindow) {
         this.mainWindow = mainWindow;
@@ -100,7 +100,7 @@ public class MenuBar {
 
         menu.add(makeMenuItem("/langfiles/gui/images/MenuBar/regular_expression_tester.png", "regular_expression_tester", "Regular Expression Tester"));
         menu.addSeparator();
-        menu.add(makeMenuItem("/langfiles/gui/images/MenuBar/options.png", "options", "Options"));
+        menu.add(makeMenuItem("/langfiles/gui/images/MenuBar/settings.png", "settings", "Settings"));
     }
 
     /**
@@ -113,7 +113,7 @@ public class MenuBar {
         menu.setMnemonic(KeyEvent.VK_W);
         menuBar.add(menu);
 
-        String window_show_icon_text = Main.getInstance().getConfig().getProperty("window_show_icon_text");
+        String window_show_icon_text = Main.getInstance().getConfig().getProperty("window/show_icon_text");
         boolean isWindowShowIconText = window_show_icon_text != null ? window_show_icon_text.equals("true") : true;
 
         menu.add(showIconTextMenuItem = makeCheckBoxMenuItem(null, "show_icon_text", "Show Icon Text", isWindowShowIconText));
@@ -124,6 +124,7 @@ public class MenuBar {
             public void actionPerformed(ActionEvent e) {
                 long when = showIconTextMenuItem.isSelected() ? 1 : 0;
                 ActionEvent actionEvent = new ActionEvent(e.getSource(), e.getID(), e.getActionCommand(), when, e.getModifiers());
+                // centralize to MainWindow's ActionListener
                 MenuBar.this.mainWindow.getActionListener().actionPerformed(actionEvent);
             }
         });
@@ -156,12 +157,12 @@ public class MenuBar {
      * Make {@see javax.swing.JMenuItem}.
      * @param imagePath the class resource path of the image, null if no image
      * @param actionCommand the action command
-     * @param altText alternative text
+     * @param tooltipText tooltip text
      * @return the JMenuItem
      */
-    private JMenuItem makeMenuItem(String imagePath, String actionCommand, String altText) {
-        JMenuItem menuItem = new JMenuItem(altText);
-        setMenuItem(menuItem, imagePath, actionCommand, altText);
+    private JMenuItem makeMenuItem(String imagePath, String actionCommand, String tooltipText) {
+        JMenuItem menuItem = new JMenuItem(tooltipText);
+        setMenuItem(menuItem, imagePath, actionCommand, tooltipText);
         return menuItem;
     }
 
@@ -169,12 +170,12 @@ public class MenuBar {
      * Make {@see javax.swing.JCheckBoxMenuItem}.
      * @param imagePath the class resource path of the image, null if no image
      * @param actionCommand the action command
-     * @param altText alternative text
+     * @param tooltipText tooltip text
      * @return the JMenuItem
      */
-    private JCheckBoxMenuItem makeCheckBoxMenuItem(String imagePath, String actionCommand, String altText, boolean isSelected) {
-        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(altText);
-        setMenuItem(menuItem, imagePath, actionCommand, altText);
+    private JCheckBoxMenuItem makeCheckBoxMenuItem(String imagePath, String actionCommand, String tooltipText, boolean isSelected) {
+        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(tooltipText);
+        setMenuItem(menuItem, imagePath, actionCommand, tooltipText);
         menuItem.setSelected(isSelected);
         return menuItem;
     }
@@ -183,13 +184,16 @@ public class MenuBar {
      * Make {@see javax.swing.JMenuItem}.
      * @param imagePath the class resource path of the image, null if no image
      * @param actionCommand the action command
-     * @param altText alternative text
+     * @param tooltipText tooltip text
      * @return the JMenuItem
      */
-    private JMenuItem setMenuItem(JMenuItem menuItem, String imagePath, String actionCommand, String altText) {
+    private JMenuItem setMenuItem(JMenuItem menuItem, String imagePath, String actionCommand, String tooltipText) {
         if (imagePath != null) {
             ImageIcon icon = new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource(imagePath)));
             menuItem.setIcon(icon);
+        }
+        if (tooltipText != null) {
+            menuItem.setToolTipText(tooltipText);
         }
         menuItem.setActionCommand(actionCommand);
         menuItem.addActionListener(mainWindow.getActionListener());

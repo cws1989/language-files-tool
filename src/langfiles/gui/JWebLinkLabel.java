@@ -11,9 +11,10 @@ import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 
 /**
- * Web link label. Support email and web site link. Web site link should start with 'http:'.
+ * Web link label. Support email and web site link. Web site link should start with 'http:'; email link should start with 'mailto:'.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
 @SuppressWarnings("serial")
@@ -120,11 +121,15 @@ public class JWebLinkLabel extends JLabel {
                             case MAIL:
                                 if (desktop.isSupported(Desktop.Action.MAIL)) {
                                     desktop.mail(webLinkURI);
+                                } else {
+                                    JOptionPane.showMessageDialog(null, "Failed to open link: " + webLinkURI);
                                 }
                                 break;
                             case BROWSE:
                                 if (desktop.isSupported(Desktop.Action.BROWSE)) {
                                     desktop.browse(webLinkURI);
+                                } else {
+                                    JOptionPane.showMessageDialog(null, "Failed to open link: " + webLinkURI);
                                 }
                                 break;
                         }

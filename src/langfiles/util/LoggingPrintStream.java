@@ -6,11 +6,15 @@ import java.io.PrintStream;
 import java.util.Locale;
 
 /**
- * Wrapper for PrintStream.
+ * Wrapper for PrintStream. Save the log to file also output to System.out.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
 public class LoggingPrintStream extends PrintStream {
 
+    /**
+     * Constructor.
+     * @param out the {@link java.io.OutputStream} to output the log to
+     */
     public LoggingPrintStream(OutputStream out) {
         super(out);
     }

@@ -1,12 +1,9 @@
 package langfiles.gui;
 
 import java.awt.BorderLayout;
-import java.io.File;
-import java.util.List;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import langfiles.project.DigestedFile;
-import langfiles.project.Project;
 
 /**
  * The code panel.
@@ -18,34 +15,23 @@ public class CodePanel {
      * The project panel.
      */
     private JPanel codePanel;
+    /**
+     * The tabbed pane that place the code panels.
+     */
+    private JTabbedPane tabbedPane;
 
     /**
-     * Constructor
+     * Constructor.
      */
     public CodePanel() {
+        tabbedPane = new JTabbedPane();
+        tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+        tabbedPane.setFocusable(false);
+
         codePanel = new JPanel();
         codePanel.setLayout(new BorderLayout());
         codePanel.setBackground(codePanel.getBackground().brighter());
-
-        //<editor-fold defaultstate="collapsed" desc="for test purpose">
-        Project handler = new Project();
-        handler.addFile(new File("build.xml"));
-        handler.addFile(new File("manifest.mf"));
-        List<DigestedFile> digestedFileLis = handler.getDigestedData();
-
-        SwingCodeViewer codeViewer = new SwingCodeViewer();
-        codeViewer.setCode(digestedFileLis.get(0));
-
-        SwingCodeViewer codeViewer2 = new SwingCodeViewer();
-        codeViewer2.setCode(digestedFileLis.get(1));
-
-        JTabbedPane tab = new JTabbedPane();
-        tab.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-        tab.setFocusable(false);
-        tab.addTab("build.xml", codeViewer.getGUI());
-        tab.addTab("manifest.mf", codeViewer2.getGUI());
-        codePanel.add(tab, BorderLayout.CENTER);
-        //</editor-fold>
+        codePanel.add(tabbedPane, BorderLayout.CENTER);
     }
 
     /**
@@ -54,5 +40,18 @@ public class CodePanel {
      */
     public JPanel getGUI() {
         return codePanel;
+    }
+
+    /**
+     * Add file to code panel.
+     * @param digestedFile the file to add to code panel
+     */
+    public void add(DigestedFile digestedFile) {
+        SwingCodeViewer codeViewer = new SwingCodeViewer();
+        codeViewer.setCode(digestedFile);
+
+        tabbedPane.addTab(digestedFile.getFile().getName(), codeViewer.getGUI());
+        tabbedPane.setSelectedComponent(codeViewer.getGUI());
+        tabbedPane.setTabComponentAt(tabbedPane.getSelectedIndex(), new JTabComponent(tabbedPane));
     }
 }

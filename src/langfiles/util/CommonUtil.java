@@ -1,10 +1,15 @@
 package langfiles.util;
 
+import java.awt.Component;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Toolkit;
 import java.awt.Window;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,7 +20,10 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
+import javax.swing.text.JTextComponent;
+import javax.swing.undo.UndoManager;
 
 /**
  * Common utilities/functions.
@@ -96,6 +104,32 @@ public class CommonUtil {
             Logger.getLogger(CommonUtil.class.getName()).log(Level.SEVERE, null, ex);
         }
         return new String(buffer);
+    }
+
+    /**
+     * If the file is a directory, return the directory path; if the file is not a directory, return the directory path that contain the file.
+     * @param file the file
+     * @return the file parent path
+     */
+    public static String getFileParentPath(File file) {
+        if (file.isDirectory()) {
+            return file.getAbsolutePath();
+        } else {
+            return getFileParentPath(file.getAbsolutePath());
+        }
+    }
+
+    /**
+     * Assume the filePath is a file path not a directory path.
+     * @param filePath the file path
+     * @return the file parent path
+     */
+    public static String getFileParentPath(String filePath) {
+        int pos = filePath.replace((CharSequence) "\\", (CharSequence) "/").lastIndexOf('/');
+        if (pos != -1) {
+            return filePath.substring(0, pos);
+        }
+        return filePath;
     }
 
     /**
@@ -199,7 +233,7 @@ public class CommonUtil {
         filePath = removeFileDirectory(filePath);
 
         int pos = filePath.indexOf('.');
-        if (pos != -1) {
+        if (pos != -1 && pos != 0) {
             return filePath.substring(0, pos);
         }
 
@@ -287,5 +321,57 @@ public class CommonUtil {
         int Xpos = (toolkit.getScreenSize().width - window.getSize().width) / 2;
         int Ypos = (toolkit.getScreenSize().height - window.getSize().height) / 2;
         window.setBounds(Xpos, Ypos, window.getSize().width, window.getSize().height);
+    }
+
+    /**
+     * Set tooltip dismiss delay to delayTimeInMilli temporarily when mouseover the component, reset to default after mouseout.
+     * @param component the component to set tooltip dismiss delay on
+     * @param delayTimeInMilli the delay time in milli second
+     */
+    public static void setTooltipDismissDelay(Component component, final int delayTimeInMilli) {
+        component.addMouseListener(new MouseAdapter() {
+
+            private int defaultDismissDelay;
+
+            @Override
+            public void mouseEntered(MouseEvent me) {
+                defaultDismissDelay = ToolTipManager.sharedInstance().getDismissDelay();
+                ToolTipManager.sharedInstance().setDismissDelay(delayTimeInMilli);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent me) {
+                ToolTipManager.sharedInstance().setDismissDelay(defaultDismissDelay);
+            }
+        });
+    }
+
+    /**
+     * Set undo (Ctrl + Z) and redo (Ctrl + Y) operation on the component.
+     * @param component the text component
+     */
+    public static void setUndoManager(JTextComponent component) {
+        final JTextComponent textComponent = component;
+        final UndoManager undoManager = new UndoManager();
+        textComponent.getDocument().addUndoableEditListener(undoManager);
+        textComponent.addKeyListener(new KeyAdapter() {
+
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (!e.getSource().equals(textComponent) || e.getModifiers() != KeyEvent.CTRL_MASK) {
+                    return;
+                }
+                int keyCode = e.getKeyCode();
+                if (keyCode == KeyEvent.VK_Z) {
+                    if (undoManager.canUndo()) {
+                        undoManager.undo();
+                    }
+                } else if (keyCode == KeyEvent.VK_Y) {
+                    if (undoManager.canRedo()) {
+                        undoManager.redo();
+                    }
+                }
+            }
+        });
     }
 }

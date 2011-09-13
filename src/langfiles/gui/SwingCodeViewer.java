@@ -9,8 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -45,6 +43,7 @@ public class SwingCodeViewer implements CodeViewer {
      * The GUI panel of the code viewer.
      */
     protected JPanel codePanel;
+    protected JPanel rowHeaderPanel;
     /**
      * The list that store only text components.
      */
@@ -56,8 +55,11 @@ public class SwingCodeViewer implements CodeViewer {
     public SwingCodeViewer() {
         codePanel = new JPanel();
         codePanel.setLayout(new GridBagLayout());
-        codePanel.setOpaque(false);
+        codePanel.setBackground(codePanel.getBackground().brighter());
         codePanel.setBorder(null);
+
+        rowHeaderPanel = new JPanel();
+        rowHeaderPanel.setLayout(new GridBagLayout());
 
         scrollPane = new JScrollPane();
         scrollPane.setOpaque(false);
@@ -66,6 +68,7 @@ public class SwingCodeViewer implements CodeViewer {
         scrollPane.getViewport().setOpaque(false);
         scrollPane.setViewportView(codePanel);
         scrollPane.setBorder(null);
+        scrollPane.setRowHeaderView(rowHeaderPanel);
     }
 
     /**
@@ -74,68 +77,6 @@ public class SwingCodeViewer implements CodeViewer {
      */
     public JScrollPane getGUI() {
         return scrollPane;
-    }
-
-    /**
-     * Set the text for display, lines are separated by \n.
-     * @param text the text
-     */
-    public void setText(String text) {
-        codePanel.removeAll();
-        textComponentList.clear();
-
-        // split the text into lines
-        String[] lines = text.split("\n");
-
-        // the width of the maximum line number
-        int lineNumberBoxWidth = CommonUtil.getFontMetrics(lineNumberFont).stringWidth(Integer.toString(lines.length)) + 7;
-
-        // the grid bag constraints
-        GridBagConstraints c = new GridBagConstraints();
-        c.weightx = 1.0F;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.gridx = 0;
-
-        for (int i = 0; i < lines.length; i++) {
-            String lineString = lines[i];
-
-            Box rowContainer = Box.createHorizontalBox();
-            rowContainer.setOpaque(false);
-
-            rowContainer.add(createLineNumberPanel(i + 1, lineNumberBoxWidth));
-            rowContainer.add(Box.createRigidArea(new Dimension(10, 1)));
-
-            Pattern javaPattern = Pattern.compile("\"([^\"]*?(\\\\\")*)*?\"");
-            Matcher matcher = javaPattern.matcher(lineString);
-            while (matcher.find()) {
-                StringBuffer sb = new StringBuffer();
-                matcher.appendReplacement(sb, "");
-                JTextField beforeMatch = createTextField(sb.toString());
-                rowContainer.add(beforeMatch);
-
-                JCheckBox matched = createCheckBox(matcher.group(0));
-                rowContainer.add(matched);
-                textComponentList.add(matched);
-            }
-            StringBuffer sb = new StringBuffer();
-            matcher.appendTail(sb);
-            JTextField tail = createTextField(sb.toString());
-            rowContainer.add(tail);
-
-            rowContainer.add(Box.createHorizontalGlue());
-
-            c.gridy = i;
-            codePanel.add(rowContainer, c);
-        }
-
-        JPanel padPanel = new JPanel();
-        padPanel.setMinimumSize(new Dimension(0, 0));
-        padPanel.setPreferredSize(new Dimension(0, 0));
-        padPanel.setOpaque(false);
-        c.gridy = lines.length;
-        c.fill = GridBagConstraints.BOTH;
-        c.weighty = 1.0F;
-        codePanel.add(padPanel, c);
     }
 
     @Override
@@ -158,7 +99,7 @@ public class SwingCodeViewer implements CodeViewer {
 
             Box rowContainer = Box.createHorizontalBox();
 
-            rowContainer.add(createLineNumberPanel(i + 1, lineNumberBoxWidth));
+            //rowContainer.add(createLineNumberPanel(i + 1, lineNumberBoxWidth));
             rowContainer.add(Box.createRigidArea(new Dimension(10, 1)));
 
             for (Component component : row) {
@@ -180,6 +121,7 @@ public class SwingCodeViewer implements CodeViewer {
             rowContainer.add(Box.createHorizontalGlue());
 
             c.gridy = i;
+            rowHeaderPanel.add(createLineNumberPanel(i + 1, lineNumberBoxWidth, rowContainer.getPreferredSize().height), c);
             codePanel.add(rowContainer, c);
         }
 
@@ -199,7 +141,7 @@ public class SwingCodeViewer implements CodeViewer {
      * @param panelWidth the fix width of the panel
      * @return the line number panel
      */
-    protected JPanel createLineNumberPanel(int lineNumber, int panelWidth) {
+    protected JPanel createLineNumberPanel(int lineNumber, int panelWidth, int panelHeight) {
         JPanel panel = new JPanel();
 
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
@@ -211,7 +153,7 @@ public class SwingCodeViewer implements CodeViewer {
         label.setFont(lineNumberFont);
         label.setOpaque(false);
         label.setHorizontalAlignment(JLabel.RIGHT);
-        label.setPreferredSize(new Dimension(panelWidth, (int) label.getPreferredSize().getHeight()));
+        label.setPreferredSize(new Dimension(panelWidth, panelHeight));
         label.setMinimumSize(label.getPreferredSize());
         label.setMaximumSize(new Dimension(panelWidth, 65535));
         panel.add(label);
@@ -234,7 +176,7 @@ public class SwingCodeViewer implements CodeViewer {
         checkBox.setText(text);
         checkBox.setBorder(BorderFactory.createEmptyBorder(0, 3, 0, 3));
         checkBox.setForeground(Color.red);
-        Dimension size = new Dimension((int) checkBox.getPreferredSize().getWidth(), 15);
+        Dimension size = new Dimension(checkBox.getPreferredSize().width, 15);
         checkBox.setPreferredSize(size);
         checkBox.setMinimumSize(size);
         checkBox.setMaximumSize(size);
@@ -254,7 +196,7 @@ public class SwingCodeViewer implements CodeViewer {
         textField.setText(text);
         textField.setBorder(null);
         // bad +1
-        Dimension size = new Dimension((int) textField.getPreferredSize().getWidth() + 1, 15);
+        Dimension size = new Dimension(textField.getPreferredSize().width + 1, 15);
         textField.setPreferredSize(size);
         textField.setMinimumSize(size);
         textField.setMaximumSize(size);
@@ -272,11 +214,10 @@ public class SwingCodeViewer implements CodeViewer {
 
         Project handler = new Project();
         handler.addFile(new File("build.xml"));
-        List<DigestedFile> digestedFileLis = handler.getDigestedData();
+        List<DigestedFile> digestedFileList = handler.getDigestedData();
 
         SwingCodeViewer codePanel = new SwingCodeViewer();
-        codePanel.setText(CommonUtil.readFile(new File("manifest.mf")));
-        codePanel.setCode(digestedFileLis.get(0));
+        codePanel.setCode(digestedFileList.get(0));
 
         JFrame frame = new JFrame();
         frame.setPreferredSize(new Dimension(800, 600));

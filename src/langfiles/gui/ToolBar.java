@@ -20,7 +20,7 @@ import langfiles.Main;
 import langfiles.util.CommonUtil;
 
 /**
- * The tool bar.
+ * The tool bar of the MainWindow.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
 public class ToolBar {
@@ -34,24 +34,28 @@ public class ToolBar {
      */
     private JToolBar toolBar;
     /**
-     * Exclusive use for {@link #setTextVisible(Boolean)}.
+     * Exclusive use for {@link #setTextVisible(Boolean)} to save the text of the button before removing the text.
      */
     private Map<Component, String> componentsText;
     /**
-     * Popup menu related
+     * Popup menu of the tool bar.
      */
     private JPopupMenu popupMenu;
+    /**
+     * The popup menu item in the {@link #popupMenu}.
+     */
     private JCheckBoxMenuItem showIconTextMenuItem;
 
     /**
-     * Constructor
+     * Constructor.
      */
     public ToolBar(MainWindow mainWindow) {
         this.mainWindow = mainWindow;
 
-        String window_show_icon_text = Main.getInstance().getConfig().getProperty("window_show_icon_text");
+        String window_show_icon_text = Main.getInstance().getConfig().getProperty("window/show_icon_text");
         boolean isWindowShowIconText = window_show_icon_text != null ? window_show_icon_text.equals("true") : true;
 
+        //<editor-fold defaultstate="collapsed" desc="popup menu">
         popupMenu = new JPopupMenu();
         showIconTextMenuItem = new JCheckBoxMenuItem("Show Icon Text");
         showIconTextMenuItem.setActionCommand("show_icon_text");
@@ -62,10 +66,12 @@ public class ToolBar {
             public void actionPerformed(ActionEvent e) {
                 long when = showIconTextMenuItem.isSelected() ? 1 : 0;
                 ActionEvent actionEvent = new ActionEvent(e.getSource(), e.getID(), e.getActionCommand(), when, e.getModifiers());
+                // centralize to MainWindow's ActionListener
                 ToolBar.this.mainWindow.getActionListener().actionPerformed(actionEvent);
             }
         });
         popupMenu.add(showIconTextMenuItem);
+        //</editor-fold>
 
         toolBar = new JToolBar();
         toolBar.setFloatable(false);
@@ -103,7 +109,7 @@ public class ToolBar {
         toolBar.add(createButton("/langfiles/gui/images/ToolBar/refresh.png", "refresh", "Refresh", "Refresh"));
         toolBar.addSeparator();
         toolBar.add(createButton("/langfiles/gui/images/ToolBar/regular_expression_tester.png", "regular_expression_tester", "Regular Expression Tester", "RegExp Tester"));
-        toolBar.add(createButton("/langfiles/gui/images/ToolBar/options.png", "options", "Options", "Options"));
+        toolBar.add(createButton("/langfiles/gui/images/ToolBar/settings.png", "settings", "Settings", "Settings"));
         toolBar.add(Box.createHorizontalGlue());
         toolBar.add(createButton("/langfiles/gui/images/ToolBar/about.png", "about", "About", "About"));
     }
@@ -144,8 +150,8 @@ public class ToolBar {
     }
 
     /**
-     * Create toggle button.
-     * @param imgLocation the image location or null
+     * Create toggle button for tool bar.
+     * @param imgLocation the image location (e.g. /langfiles/logo.png) or null
      * @param actionCommand the action command or null
      * @param toolTipText the tool tip text or null
      * @param altText the alternate text or null
@@ -181,8 +187,8 @@ public class ToolBar {
     }
 
     /**
-     * Create button.
-     * @param imgLocation the image location or null
+     * Create button for tool bar.
+     * @param imgLocation the image location (e.g. /langfiles/logo.png) or null
      * @param actionCommand the action command or null
      * @param toolTipText the tool tip text or null
      * @param altText the alternate text or null

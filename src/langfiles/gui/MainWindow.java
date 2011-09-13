@@ -4,24 +4,22 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Toolkit;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.event.ChangeEvent;
 import langfiles.Main;
-import langfiles.util.Config;
+import langfiles.util.CommonUtil;
 
 /**
  * The main window of the program.
@@ -38,21 +36,21 @@ public class MainWindow {
      */
     private MenuBar menuBar;
     /**
-     * Tool bar
+     * The tool bar of the window.
      */
     private ToolBar toolBar;
     /**
-     * The project panel
+     * The project panel of the window.
      */
     private ProjectPanel projectPanel;
     /**
-     * The code panel
+     * The code panel of the window.
      */
     private CodePanel codePanel;
     /**
      * Program event listener list.
      */
-    private final List<MainWindowEventListener> programEventListeners = Collections.synchronizedList(new ArrayList<MainWindowEventListener>());
+    private final List<MainWindowEventListener> mainWindowEventListenerList;
     /**
      * The action listener for menu bar and tool bar.
      */
@@ -62,6 +60,8 @@ public class MainWindow {
      * Constructor.
      */
     public MainWindow() {
+        mainWindowEventListenerList = Collections.synchronizedList(new ArrayList<MainWindowEventListener>());
+
         // should be initialized before initialize menu bar, content panel, ...
         actionListener = new ActionListener() {
 
@@ -72,8 +72,8 @@ public class MainWindow {
                  * file menu
                  */
                 if (cmd.equals("exit")) {
-                    WindowListener[] windowListeners = window.getWindowListeners();
-                    for (WindowListener windowListener : windowListeners) {
+                    WindowListener[] windowListenerList = window.getWindowListeners();
+                    for (WindowListener windowListener : windowListenerList) {
                         windowListener.windowClosing(new WindowEvent(window, WindowEvent.WINDOW_CLOSING));
                     }
                 }/**
@@ -91,7 +91,41 @@ public class MainWindow {
                  * tools menu
                  */
                 else if (cmd.equals("regular_expression_tester")) {
-                } else if (cmd.equals("option")) {
+                    final JFrame frame = new JFrame();
+                    frame.setTitle("Regular Expression Tester");
+                    frame.setIconImage(Toolkit.getDefaultToolkit().getImage(JTitledPanel.class.getResource("/langfiles/gui/images/RegularExpressionTester/logo.png")));
+                    frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+                    final RegularExpressionTester regularExpressionTester = new RegularExpressionTester();
+                    frame.setContentPane(regularExpressionTester.getGUI());
+                    frame.pack();
+                    frame.setLocationRelativeTo(window);
+
+                    final MainWindowEventListener mainWindowEventListener = new MainWindowEventListener() {
+
+                        @Override
+                        public boolean windowCanCloseNow(ChangeEvent event) {
+                            return true;
+                        }
+
+                        @Override
+                        public void windowIsClosing(ChangeEvent event) {
+                            frame.dispose();
+                        }
+                    };
+                    addMainWindowEventListener(mainWindowEventListener);
+
+                    frame.addWindowListener(new WindowAdapter() {
+
+                        @Override
+                        public void windowClosed(WindowEvent e) {
+                            regularExpressionTester.close();
+                            removeMainWindowEventListener(mainWindowEventListener);
+                        }
+                    });
+
+                    frame.setVisible(true);
+                } else if (cmd.equals("settings")) {
                 }/**
                  * help menu
                  */
@@ -103,16 +137,12 @@ public class MainWindow {
                  */
                 else if (cmd.equals("show_icon_text")) {
                     boolean showIconText = e.getWhen() == 1;
+
                     Main main = Main.getInstance();
-                    Config config = main.getConfig();
-                    config.setProperty("window_show_icon_text", Boolean.toString(showIconText));
-                    try {
-                        config.save();
-                    } catch (IOException ex) {
-                        Logger.getLogger(MainWindow.class.getName()).log(Level.SEVERE, null, ex);
-                    }
+                    main.getConfig().setProperty("window/show_icon_text", Boolean.toString(showIconText));
+
                     getToolBar().setShowIconText(showIconText);
-                    menuBar.setShowIconText(showIconText);
+                    getMenuBar().setShowIconText(showIconText);
                 }
             }
         };
@@ -134,7 +164,7 @@ public class MainWindow {
         splitPane.setDividerLocation(250);
         contentPanel.add(splitPane, BorderLayout.CENTER);
 
-        projectPanel = new ProjectPanel();
+        projectPanel = new ProjectPanel(this);
         splitPane.setLeftComponent(projectPanel.getGUI());
 
         codePanel = new CodePanel();
@@ -150,25 +180,27 @@ public class MainWindow {
             @Override
             public void windowClosing(WindowEvent evt) {
                 ChangeEvent event = new ChangeEvent(MainWindow.this);
-                synchronized (programEventListeners) {
-                    for (MainWindowEventListener listener : programEventListeners) {
-                        if (!listener.programCanCloseNow(event)) {
+                synchronized (mainWindowEventListenerList) {
+                    for (MainWindowEventListener listener : mainWindowEventListenerList) {
+                        if (!listener.windowCanCloseNow(event)) {
                             return;
                         }
                     }
-                    for (MainWindowEventListener listener : programEventListeners) {
-                        listener.programIsClosing(event);
+                    for (MainWindowEventListener listener : mainWindowEventListenerList) {
+                        listener.windowIsClosing(event);
                     }
                 }
-                JFrame window = ((JFrame) evt.getSource());
-                window.dispose();
+                Window window = ((Window) evt.getSource());
+                if (window != null) {
+                    window.dispose();
+                }
             }
         });
         window.setJMenuBar(menuBar.getGUI());
         window.setContentPane(contentPanel);
         window.pack();
-        window.setLocationByPlatform(true);
-        //CommonUtil.centerWindow(window);
+        //window.setLocationByPlatform(true);
+        CommonUtil.centerWindow(window);
         window.setVisible(true);
     }
 
@@ -224,9 +256,9 @@ public class MainWindow {
      * Add program event listener.
      * @param listener the program event listener
      */
-    public void addProgramEventListener(MainWindowEventListener listener) {
-        synchronized (programEventListeners) {
-            programEventListeners.add(listener);
+    public void addMainWindowEventListener(MainWindowEventListener listener) {
+        synchronized (mainWindowEventListenerList) {
+            mainWindowEventListenerList.add(listener);
         }
     }
 
@@ -234,9 +266,9 @@ public class MainWindow {
      * Remove program event listener.
      * @param listener the program event listener
      */
-    public void removeProgramEventListener(MainWindowEventListener listener) {
-        synchronized (programEventListeners) {
-            programEventListeners.remove(listener);
+    public void removeMainWindowEventListener(MainWindowEventListener listener) {
+        synchronized (mainWindowEventListenerList) {
+            mainWindowEventListenerList.remove(listener);
         }
     }
 }

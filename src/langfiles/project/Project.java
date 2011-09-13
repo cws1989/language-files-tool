@@ -23,16 +23,28 @@ public class Project {
     /**
      * The list of allowed file extensions.
      */
-    private final List<String> allowedExtensionList = Collections.synchronizedList(new ArrayList<String>());
+    private final List<String> allowedExtensionList;
+    /**
+     * The list of disallowed file extensions.
+     */
+    private final List<String> disallowedExtensionList;
+    /**
+     * The list of ignored files.
+     */
+    private final List<String> ignoreFileList;
     /**
      * The list of digested data/files.
      */
-    private final List<DigestedFile> digestedData = Collections.synchronizedList(new ArrayList<DigestedFile>());
+    private final List<DigestedFile> digestedData;
 
     /**
      * Constructor.
      */
     public Project() {
+        allowedExtensionList = Collections.synchronizedList(new ArrayList<String>());
+        disallowedExtensionList = Collections.synchronizedList(new ArrayList<String>());
+        ignoreFileList = Collections.synchronizedList(new ArrayList<String>());
+        digestedData = Collections.synchronizedList(new ArrayList<DigestedFile>());
     }
 
     /**
@@ -48,7 +60,7 @@ public class Project {
     }
 
     /**
-     * Set the list of allowed file extensions. See also {@link #validateFilesFileExtension}.
+     * Set the list of allowed file extensions.
      * @param extensionList the allowed file extension list
      */
     public void setAllowedExtensions(List<String> extensionList) {
@@ -63,92 +75,109 @@ public class Project {
             allowedExtensionList.clear();
             allowedExtensionList.addAll(extensionList);
         }
-    }
 
-    /**
-     * Remove files whose file extension did not exist in allowed file extension list.
-     */
-    public void validateFilesFileExtension() {
-        synchronized (digestedData) {
-            synchronized (allowedExtensionList) {
-                if (allowedExtensionList.isEmpty()) {
-                    return;
-                }
-                Iterator<DigestedFile> iterator = digestedData.iterator();
-                while (iterator.hasNext()) {
-                    DigestedFile digestedFile = iterator.next();
-                    if (!recursiveValidateFilesFileExtension(digestedFile)) {
-                        iterator.remove();
-                    }
-                }
-            }
+        // remove files with extension not within the allowed extension list and add back those within the allowed extension list
+        try {
+            revalidateFiles();
+        } catch (IOException ex) {
+            Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
     /**
-     * Remove files whose file extension did not exist in allowed file extension list recursively.
-     * @param digestedFile the file to check
-     * @return true if (file extension exist in the allowed file extension list | directory is not empty after checking)
+     * Get the list of disallowed file extensions.
+     * @return the allowed file extension list
      */
-    private boolean recursiveValidateFilesFileExtension(DigestedFile digestedFile) {
-        if (digestedFile.isDirectory()) {
-            List<DigestedFile> files = digestedFile.getFiles();
+    public List<String> getDisallowedExtensions() {
+        List<String> returnList = null;
+        synchronized (disallowedExtensionList) {
+            returnList = new ArrayList<String>(disallowedExtensionList);
+        }
+        return returnList;
+    }
 
-            Iterator<DigestedFile> iterator = files.iterator();
+    /**
+     * Set the list of disallowed file extensions.
+     * @param extensionList the disallowed file extension list
+     */
+    public void setDisallowedExtensions(List<String> extensionList) {
+        synchronized (disallowedExtensionList) {
+            ListIterator<String> iterator = extensionList.listIterator();
             while (iterator.hasNext()) {
-                DigestedFile _digestedFile = iterator.next();
-                if (!recursiveValidateFilesFileExtension(_digestedFile)) {
-                    iterator.remove();
+                String extension = iterator.next();
+                if (extension.charAt(0) == '.') {
+                    iterator.set(extension.substring(1));
                 }
             }
-
-            if (files.isEmpty()) {
-                return false;
-            }
-        } else {
-            if (allowedExtensionList.indexOf(CommonUtil.getFileExtension(digestedFile.getFile().getName())) == -1) {
-                return false;
-            }
+            disallowedExtensionList.clear();
+            disallowedExtensionList.addAll(extensionList);
         }
-        return true;
+
+        // remove files with extension within the allowed extension list and add back those not within the allowed extension list
+        try {
+            revalidateFiles();
+        } catch (IOException ex) {
+            Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
-     * Add folder and all files inside recursively to the handler.
+     * Add file to ignore file list.
+     * @param file the file to ignore
+     */
+    public void addIgnoreFile(File file) {
+        synchronized (ignoreFileList) {
+            if (ignoreFileList.indexOf(file.getAbsolutePath()) == -1) {
+                ignoreFileList.add(file.getAbsolutePath());
+            }
+        }
+    }
+
+    /**
+     * Remove the file from the ignore file list.
+     * @param file the file to remove from ignore file list
+     */
+    public void removeIgnoreFile(File file) {
+        ignoreFileList.remove(file.getAbsolutePath());
+    }
+
+    /**
+     * Get ignore file list.
+     * @return the list
+     */
+    public List<String> getIgnoreFileList() {
+        return new ArrayList<String>(ignoreFileList);
+    }
+
+    /**
+     * Add folder and all files inside recursively to the project.
      * @param folder the directory
      */
     public void addFolder(File folder) {
-        List<File> fileList = CommonUtil.getFiles(folder, allowedExtensionList);
-        for (File file : fileList) {
-            // compare to existing file list to check duplication
-            boolean existAlready = false;
-            for (DigestedFile digestedFile : digestedData) {
-                if (digestedFile.getFile().equals(file)) {
-                    existAlready = true;
-                    break;
-                }
+        // compare to existing file list to check duplication
+        boolean existAlready = false;
+        for (DigestedFile digestedFile : digestedData) {
+            if (digestedFile.getFile().getAbsolutePath().equals(folder.getAbsolutePath())) {
+                existAlready = true;
+                break;
             }
-            if (!existAlready) {
-                continue;
-            }
-
-            addFile(file);
         }
-    }
-
-    /**
-     * Add file to the handler.
-     * @param file the file to add
-     */
-    public void addFile(File file) {
-        if (!allowedExtensionList.isEmpty() && allowedExtensionList.indexOf(CommonUtil.getFileExtension(file.getName())) == -1) {
+        if (existAlready) {
             return;
         }
+
+//        DigestedFile digestedFile = new DigestedFile(folder, new ArrayList<List<Component>>(), new ArrayList<DigestedFile>());
         try {
-            String fileString = CommonUtil.readFile(file);
-            digestedData.add(new DigestedFile(file, parse(fileString), new ArrayList<DigestedFile>()));
-            synchronized (digestedData) {
-                Collections.sort(digestedData);
+//            if (!revalidateFilesRecursively(digestedFile)) {
+//                // if not fufil filter, don't add to {@link #digestedData}
+//                return;
+//            }
+            DigestedFile digestedFile = getFile(folder);
+            if (digestedFile != null) {
+                digestedData.add(digestedFile);
+                synchronized (digestedData) {
+                    Collections.sort(digestedData);
+                }
             }
         } catch (IOException ex) {
             Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
@@ -156,8 +185,148 @@ public class Project {
     }
 
     /**
+     * Add file to the project.
+     * @param file the file to add
+     */
+    public void addFile(File file) {
+        try {
+            DigestedFile digestedFile = getFile(file);
+            if (digestedFile != null) {
+                digestedData.add(digestedFile);
+                synchronized (digestedData) {
+                    Collections.sort(digestedData);
+                }
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    /**
+     * Revalidate the {@link #digestedData} list. Add/remove files according to {@link #allowedExtensionList}, {@link #disallowedExtensionList}, {@link #ignoreFileList}.
+     * @throws IOException error when reading any files
+     */
+    private void revalidateFiles() throws IOException {
+        Iterator<DigestedFile> iterator = digestedData.iterator();
+        while (iterator.hasNext()) {
+            if (!revalidateFilesRecursively(iterator.next())) {
+                iterator.remove();
+            }
+        }
+    }
+
+    /**
+     * Exclusive use for {@link #revalidateFiles()}.
+     * @param digestedFile the file to revalidate
+     * @return true if the file fufil the filter, false if not fufil the filter
+     * @throws IOException error when reading any files
+     */
+    private boolean revalidateFilesRecursively(DigestedFile digestedFile) throws IOException {
+        if (digestedFile.isDirectory()) {
+            if (!isDirectoryFufilFilter(digestedFile.getFile())) {
+                return false;
+            }
+
+            List<DigestedFile> fileList = new ArrayList<DigestedFile>();
+
+            File[] currentFiles = digestedFile.getFile().listFiles();
+            for (File currentFile : currentFiles) {
+                String currentFileAbsolutePath = currentFile.getAbsolutePath();
+
+                boolean fileExistInOldFiles = false;
+
+                // compare to existing file and see if there is any match
+                List<DigestedFile> oldFiles = digestedFile.getFiles();
+                Iterator<DigestedFile> iterator = oldFiles.iterator();
+                while (iterator.hasNext()) {
+                    DigestedFile _digestedFile = iterator.next();
+                    if (currentFileAbsolutePath.equals(_digestedFile.getFile().getAbsolutePath())) {
+                        // current file match old file
+                        if (revalidateFilesRecursively(_digestedFile)) {
+                            fileList.add(_digestedFile);
+                        }
+                        iterator.remove();
+                        fileExistInOldFiles = true;
+                        break;
+                    }
+                }
+
+                // check the unexisting file and add it to list if it fufil the filter
+                if (!fileExistInOldFiles) {
+                    DigestedFile _digestedFile = getFile(currentFile);
+                    if (_digestedFile != null) {
+                        fileList.add(_digestedFile);
+                    }
+                }
+            }
+
+            digestedFile.updateFiles(fileList);
+        } else {
+            if (!isFileFufilFilter(digestedFile.getFile())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Parse the file to {@link langfiles.project.DigestedFile}.
+     * If it is a directory, it will parse its sub-folder and files recursively.
+     * @param file the file to parse
+     * @return the DigestedFile or null if filter not fufiled
+     * @throws IOException error when reading the file
+     */
+    private DigestedFile getFile(File file) throws IOException {
+        DigestedFile returnFile = null;
+        if (file.isDirectory()) {
+            if (!isDirectoryFufilFilter(file)) {
+                return null;
+            }
+
+            List<DigestedFile> fileList = new ArrayList<DigestedFile>();
+
+            File[] files = file.listFiles();
+            for (File _file : files) {
+                DigestedFile digestedFile = getFile(_file);
+                if (digestedFile != null) {
+                    fileList.add(digestedFile);
+                }
+            }
+
+            returnFile = new DigestedFile(file, new ArrayList<List<Component>>(), fileList);
+        } else {
+            if (!isFileFufilFilter(file)) {
+                return null;
+            }
+            String fileString = CommonUtil.readFile(file);
+            returnFile = new DigestedFile(file, parse(fileString), new ArrayList<DigestedFile>());
+        }
+        return returnFile;
+    }
+
+    /**
+     * Check whether the directory fufil those filters.
+     * @param file the directory to check
+     * @return true if fufil, false if not
+     */
+    private boolean isDirectoryFufilFilter(File file) {
+        return !(ignoreFileList.indexOf(file.getAbsolutePath()) != -1);
+    }
+
+    /**
+     * Check whether the file fufil those filters.
+     * @param file the file to check
+     * @return true if fufil, false if not
+     */
+    private boolean isFileFufilFilter(File file) {
+        return !((!allowedExtensionList.isEmpty() && allowedExtensionList.indexOf(CommonUtil.getFileExtension(file.getName())) == -1)
+                || (!disallowedExtensionList.isEmpty() && disallowedExtensionList.indexOf(CommonUtil.getFileExtension(file.getName())) != -1)
+                || ignoreFileList.indexOf(file.getAbsolutePath()) != -1);
+    }
+
+    /**
      * Parse the string and return the parsed result. The returned value is stored row by row and each row is divided into components.
-     * The returned value is the data list format of {@link langfiles.handler.DigestedFile}.
+     * The returned value is the data list format of {@link langfiles.project.DigestedFile}.
      * @param fileData the string data to parse
      * @return the parsed result
      */
@@ -172,7 +341,8 @@ public class Project {
             List<Component> rowList = new ArrayList<Component>();
             dataList.add(rowList);
 
-            Pattern javaPattern = Pattern.compile("\"([^\"]*?(\\\\\")*)*?\"");
+//            Pattern javaPattern = Pattern.compile("\"([^\"]*?(\\\\\")*)+?\"");
+            Pattern javaPattern = Pattern.compile("\"(?:[^\\\\\"]{1}|(?:\\\\\"){1})*?\"");
             Matcher matcher = javaPattern.matcher(lineString);
             while (matcher.find()) {
                 StringBuffer sb = new StringBuffer();

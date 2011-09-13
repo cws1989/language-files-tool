@@ -10,6 +10,7 @@ public class WrappedConsoleHandler extends ConsoleHandler {
 
     public WrappedConsoleHandler() {
         super();
+        // redirect to System.out
         setOutputStream(System.out);
     }
 }

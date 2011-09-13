@@ -22,7 +22,7 @@ import langfiles.util.SpringUtilities;
 public class About {
 
     /**
-     * The dialog object.
+     * The dialog object of the 'About' panel.
      */
     private JDialog dialog;
 
@@ -32,12 +32,12 @@ public class About {
      */
     public About(Frame frame) {
         JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
         //<editor-fold defaultstate="collapsed" desc="titleBox">
         Box titleBox = Box.createHorizontalBox();
-        titleBox.setBorder(BorderFactory.createEmptyBorder(0, 10, 12, 10));
+        titleBox.setBorder(BorderFactory.createEmptyBorder(0, 10, 5, 10));
 
         JLabel titleLabel = new JLabel("Language Files Tool");
         titleLabel.setFont(CommonUtil.deriveFont(titleLabel.getFont(), true, 14));
@@ -55,7 +55,6 @@ public class About {
 
         //<editor-fold defaultstate="collapsed" desc="contentPanel">
         JPanel contentPanel = new JPanel();
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 5, 0));
         contentPanel.setLayout(new SpringLayout());
 
         JLabel authorTitleLabel = new JLabel("Contributor: ");
@@ -87,7 +86,7 @@ public class About {
             Logger.getLogger(About.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        SpringUtilities.makeCompactGrid(contentPanel, 3, 2, 0, 0, 10, 6);
+        SpringUtilities.makeCompactGrid(contentPanel, 3, 2, 10, 5, 10, 5);
         //</editor-fold>
         panel.add(contentPanel);
 

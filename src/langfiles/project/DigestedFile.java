@@ -160,7 +160,8 @@ public class DigestedFile implements Comparable<Object> {
             return true;
         }
         DigestedFile _object = (DigestedFile) compareTo;
-        return _object.file.equals(file) && _object.lastModified == lastModified && _object.dataList.equals(dataList) && _object.files.equals(files);
+
+        return _object.file.getAbsolutePath().equals(file.getAbsolutePath()) && _object.lastModified == lastModified && _object.dataList.equals(dataList) && _object.files.equals(files);
     }
 
     @Override
