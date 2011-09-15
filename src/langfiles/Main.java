@@ -18,14 +18,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.InvalidPropertiesFormatException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.event.ChangeEvent;
 import langfiles.gui.MainWindow;
 import langfiles.project.Project;
@@ -63,7 +63,7 @@ public class Main {
     /**
      * Shutdown hook list. Things that has to be done before program exit/shutdown.
      */
-    private final List<Runnable> shutdownHookList;
+    final Map<Integer, List<Runnable>> shutdownHookList;
     /**
      * The MainWindow event listener that will be added to every MainWindow. 
      * It is used to remove the MainWindow from {@link #mainWindowList}.
@@ -108,14 +108,16 @@ public class Main {
         //</editor-fold>
 
         //<editor-fold defaultstate="collapsed" desc="shutdown hook">
-        shutdownHookList = Collections.synchronizedList(new ArrayList<Runnable>());
+        shutdownHookList = Collections.synchronizedMap(new TreeMap<Integer, List<Runnable>>());
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 
             @Override
             public void run() {
                 synchronized (shutdownHookList) {
-                    for (Runnable task : shutdownHookList) {
-                        task.run();
+                    for (List<Runnable> taskList : shutdownHookList.values()) {
+                        for (Runnable task : taskList) {
+                            task.run();
+                        }
                     }
                 }
             }
@@ -123,13 +125,13 @@ public class Main {
         //</editor-fold>
 
         //<editor-fold defaultstate="collapsed" desc="configuration">
-        configFilePath = storageDirectoryPath + "/config.ini";
+        configFilePath = storageDirectoryPath + "/config.xml";
         try {
             config = new MainConfig(configFilePath);
         } catch (IOException ex) {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
-        addShutdownEvent(new Runnable() {
+        addShutdownEvent(101, new Runnable() {
 
             @Override
             public void run() {
@@ -257,10 +259,18 @@ public class Main {
 
     /**
      * Add shutdown event.
+     * @param priorityValue smaller value will be executed first
      * @param task the task to execute before shutdown
      */
-    public final void addShutdownEvent(Runnable task) {
-        shutdownHookList.add(task);
+    public final void addShutdownEvent(int priorityValue, Runnable task) {
+        synchronized (shutdownHookList) {
+            List<Runnable> taskList = shutdownHookList.get(priorityValue);
+            if (taskList == null) {
+                taskList = new ArrayList<Runnable>();
+                shutdownHookList.put(priorityValue, taskList);
+            }
+            taskList.add(task);
+        }
     }
 
     /**
@@ -268,7 +278,15 @@ public class Main {
      * @param task remove the task from {@link #shutdownHookList}
      */
     public boolean removeShutdownEvent(Runnable task) {
-        return shutdownHookList.remove(task);
+        synchronized (shutdownHookList) {
+            for (Integer priorityValue : shutdownHookList.keySet()) {
+                List<Runnable> taskList = shutdownHookList.get(priorityValue);
+                if (taskList.indexOf(task) != -1) {
+                    return taskList.remove(task);
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -277,7 +295,7 @@ public class Main {
     private class MainConfig implements Config {
 
         /**
-         * The path of the configuration file.
+         * The path of the configuration file, must not return null for {@link java.io.File#getParent()}.
          */
         private String configPath;
         /**
@@ -292,6 +310,10 @@ public class Main {
          * The list that record the config changes.
          */
         private final List<ConfigChange> configChanges;
+        /**
+         * The watch id used by JNotify to listen on config file modification event.
+         */
+        private int watchId = 0;
 
         /**
          * Constructor.
@@ -302,31 +324,48 @@ public class Main {
             this.configPath = configPath;
             this.configChanges = Collections.synchronizedList(new ArrayList<ConfigChange>());
             reload();
-            try {
-                final int watchId = JNotify.addWatch(new File(configPath).getParent(), JNotify.FILE_MODIFIED, false, new JNotifyAdapter() {
 
-                    @Override
-                    public void fileModified(int wd, String rootPath, String name) {
-                        try {
-                            reload();
-                        } catch (IOException ex) {
-                            Logger.getLogger(MainConfig.class.getName()).log(Level.SEVERE, null, ex);
-                        }
-                    }
-                });
-                addShutdownEvent(new Runnable() {
+            try {
+                addWatch();
+                addShutdownEvent(200, new Runnable() {
 
                     @Override
                     public void run() {
-                        try {
-                            JNotify.removeWatch(watchId);
-                        } catch (JNotifyException ex) {
-                            Logger.getLogger(MainConfig.class.getName()).log(Level.SEVERE, null, ex);
-                        }
+                        removeWatch();
                     }
                 });
             } catch (JNotifyException ex) {
                 // ignore
+            }
+        }
+
+        /**
+         * Listen on the config file modification event.
+         * @throws JNotifyException error occurred when setting the event listener
+         */
+        private void addWatch() throws JNotifyException {
+            watchId = JNotify.addWatch(new File(configPath).getParent(), JNotify.FILE_MODIFIED, false, new JNotifyAdapter() {
+
+                @Override
+                public void fileModified(int wd, String rootPath, String name) {
+                    try {
+                        reload();
+                    } catch (IOException ex) {
+                        Logger.getLogger(MainConfig.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+            });
+        }
+
+        /**
+         * Remove the config file modification event listener.
+         * @throws JNotifyException error occurred when removing the event listener
+         */
+        private void removeWatch() {
+            try {
+                JNotify.removeWatch(watchId);
+            } catch (JNotifyException ex) {
+                Logger.getLogger(MainConfig.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
 
@@ -351,6 +390,8 @@ public class Main {
         @Override
         public void save() throws IOException {
             synchronized (configChanges) {
+                removeWatch();
+
                 File configFile = new File(configPath);
                 OutputStream out = new BufferedOutputStream(new FileOutputStream(configFile));
                 config.storeToXML(out, "You are not supposed to edit this file directly.");
@@ -358,6 +399,8 @@ public class Main {
 
                 configChanges.clear();
                 isChanged = false;
+
+                addWatch();
             }
         }
 
@@ -377,6 +420,11 @@ public class Main {
                 }
             }
             return returnObject;
+        }
+
+        @Override
+        public String removeProperty(String key) {
+            return (String) config.remove(key);
         }
 
         @Override
@@ -403,10 +451,10 @@ public class Main {
 
                 // for test purpose
                 List<MainWindow> mainWindowList = main.getWindows();
-                Project project = new Project();
+                Project project = new Project("Language Files Tool");
                 project.setAllowedExtensions(Arrays.asList(new String[]{".java"}));
                 project.addFolder(new File(System.getProperty("user.dir")));
-                mainWindowList.get(0).getProjectPanel().addProject(project);
+                mainWindowList.get(0).addProject(project);
             }
         });
     }

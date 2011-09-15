@@ -21,9 +21,9 @@ import langfiles.util.CommonUtil;
  * The titled panel for common use.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
-@SuppressWarnings("serial")
 public class JTitledPanel extends JPanel {
 
+    private static final long serialVersionUID = 1L;
     /**
      * The title label in {@link #headerPanel}.
      */

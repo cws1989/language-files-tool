@@ -17,9 +17,9 @@ import javax.swing.JOptionPane;
  * Web link label. Support email and web site link. Web site link should start with 'http:'; email link should start with 'mailto:'.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
-@SuppressWarnings("serial")
 public class JWebLinkLabel extends JLabel {
 
+    private static final long serialVersionUID = 1L;
     /**
      * Record the type of the link, either {@link java.awt.Desktop.Action.MAIL} or {@link java.awt.Desktop.Action.BROWSE}.
      */

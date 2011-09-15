@@ -13,13 +13,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import langfiles.project.DigestedFile.Component;
 import langfiles.util.CommonUtil;
+import langfiles.util.SortedArrayList;
 
 /**
  * The project handler.
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
-public class Project {
+public class Project implements Comparable<Object> {
 
+    /**
+     * The project name.
+     */
+    protected String projectName;
     /**
      * The list of allowed file extensions.
      */
@@ -33,18 +38,27 @@ public class Project {
      */
     private final List<String> ignoreFileList;
     /**
-     * The list of digested data/files.
+     * The list of digested data/files. It is a sorted ArrayList.
      */
     private final List<DigestedFile> digestedData;
 
     /**
      * Constructor.
      */
-    public Project() {
+    public Project(String projectName) {
+        this.projectName = projectName;
         allowedExtensionList = Collections.synchronizedList(new ArrayList<String>());
         disallowedExtensionList = Collections.synchronizedList(new ArrayList<String>());
         ignoreFileList = Collections.synchronizedList(new ArrayList<String>());
-        digestedData = Collections.synchronizedList(new ArrayList<DigestedFile>());
+        digestedData = Collections.synchronizedList(new SortedArrayList<DigestedFile>());
+    }
+
+    /**
+     * Get the name of the project.
+     * @return the project name
+     */
+    public String getName() {
+        return projectName;
     }
 
     /**
@@ -166,18 +180,10 @@ public class Project {
             return;
         }
 
-//        DigestedFile digestedFile = new DigestedFile(folder, new ArrayList<List<Component>>(), new ArrayList<DigestedFile>());
         try {
-//            if (!revalidateFilesRecursively(digestedFile)) {
-//                // if not fufil filter, don't add to {@link #digestedData}
-//                return;
-//            }
             DigestedFile digestedFile = getFile(folder);
             if (digestedFile != null) {
                 digestedData.add(digestedFile);
-                synchronized (digestedData) {
-                    Collections.sort(digestedData);
-                }
             }
         } catch (IOException ex) {
             Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
@@ -193,9 +199,6 @@ public class Project {
             DigestedFile digestedFile = getFile(file);
             if (digestedFile != null) {
                 digestedData.add(digestedFile);
-                synchronized (digestedData) {
-                    Collections.sort(digestedData);
-                }
             }
         } catch (IOException ex) {
             Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
@@ -209,7 +212,8 @@ public class Project {
     private void revalidateFiles() throws IOException {
         Iterator<DigestedFile> iterator = digestedData.iterator();
         while (iterator.hasNext()) {
-            if (!revalidateFilesRecursively(iterator.next())) {
+            DigestedFile digestedFile = iterator.next();
+            if (!revalidateFilesRecursively(digestedFile)) {
                 iterator.remove();
             }
         }
@@ -231,6 +235,10 @@ public class Project {
 
             File[] currentFiles = digestedFile.getFile().listFiles();
             for (File currentFile : currentFiles) {
+                if (currentFile.isHidden()) {
+                    continue;
+                }
+
                 String currentFileAbsolutePath = currentFile.getAbsolutePath();
 
                 boolean fileExistInOldFiles = false;
@@ -287,19 +295,22 @@ public class Project {
 
             File[] files = file.listFiles();
             for (File _file : files) {
+                if (_file.isHidden()) {
+                    continue;
+                }
                 DigestedFile digestedFile = getFile(_file);
                 if (digestedFile != null) {
                     fileList.add(digestedFile);
                 }
             }
 
-            returnFile = new DigestedFile(file, new ArrayList<List<Component>>(), fileList);
+            returnFile = new DigestedFile(this, file, new ArrayList<List<Component>>(), fileList);
         } else {
             if (!isFileFufilFilter(file)) {
                 return null;
             }
             String fileString = CommonUtil.readFile(file);
-            returnFile = new DigestedFile(file, parse(fileString), new ArrayList<DigestedFile>());
+            returnFile = new DigestedFile(this, file, parse(fileString), new ArrayList<DigestedFile>());
         }
         return returnFile;
     }
@@ -374,5 +385,14 @@ public class Project {
      * Commit the changes.
      */
     public void commit() {
+    }
+
+    @Override
+    public int compareTo(Object o) {
+        if (o instanceof Project) {
+            return getName().compareTo(((Project) o).getName());
+        } else {
+            throw new ClassCastException();
+        }
     }
 }

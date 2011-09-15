@@ -1,5 +1,6 @@
 package langfiles.gui;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -35,6 +36,7 @@ public class SwingCodeViewer implements CodeViewer {
      * The font of the line number text.
      */
     protected Font lineNumberFont = new Font("Verdana", Font.PLAIN, 10);
+    protected JPanel guiPanel;
     /**
      * The scroll pane that contain the codePanel.
      */
@@ -69,14 +71,19 @@ public class SwingCodeViewer implements CodeViewer {
         scrollPane.setViewportView(codePanel);
         scrollPane.setBorder(null);
         scrollPane.setRowHeaderView(rowHeaderPanel);
+
+        guiPanel = new JPanel();
+        guiPanel.setLayout(new BorderLayout());
+        guiPanel.add(scrollPane, BorderLayout.CENTER);
     }
 
     /**
      * Get the GUI display panel.
      * @return the GUI component
      */
-    public JScrollPane getGUI() {
-        return scrollPane;
+    @Override
+    public JPanel getGUI() {
+        return guiPanel;
     }
 
     @Override
@@ -125,14 +132,21 @@ public class SwingCodeViewer implements CodeViewer {
             codePanel.add(rowContainer, c);
         }
 
+        c.gridy = digestedFile.getRowSize();
+        c.fill = GridBagConstraints.BOTH;
+        c.weighty = 1.0F;
+
         JPanel padPanel = new JPanel();
         padPanel.setMinimumSize(new Dimension(0, 0));
         padPanel.setPreferredSize(new Dimension(0, 0));
         padPanel.setOpaque(false);
-        c.gridy = digestedFile.getRowSize();
-        c.fill = GridBagConstraints.BOTH;
-        c.weighty = 1.0F;
         codePanel.add(padPanel, c);
+
+        padPanel = new JPanel();
+        padPanel.setMinimumSize(new Dimension(0, 0));
+        padPanel.setPreferredSize(new Dimension(0, 0));
+        padPanel.setOpaque(false);
+        rowHeaderPanel.add(padPanel, c);
     }
 
     /**
@@ -212,7 +226,7 @@ public class SwingCodeViewer implements CodeViewer {
     public static void main(String[] args) throws IOException {
         CommonUtil.setLookAndFeel();
 
-        Project handler = new Project();
+        Project handler = new Project("Project Name");
         handler.addFile(new File("build.xml"));
         List<DigestedFile> digestedFileList = handler.getDigestedData();
 

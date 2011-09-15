@@ -6,8 +6,14 @@ import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -24,10 +30,14 @@ import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
+import langfiles.Main;
 import langfiles.project.DigestedFile;
 import langfiles.project.Project;
+import langfiles.util.Config;
+import langfiles.util.SortedArrayList;
 
 /**
  * The project panel.
@@ -35,6 +45,10 @@ import langfiles.project.Project;
  */
 public class ProjectPanel {
 
+    /**
+     * Main
+     */
+    private Main main;
     /**
      * MainWindow
      */
@@ -49,18 +63,62 @@ public class ProjectPanel {
     private JScrollPane treeScrollPane;
     private JTree tree;
     private DefaultMutableTreeNode rootNode;
+    /**
+     * Project list.
+     */
+    private final List<Project> projectList;
+    private final Map<Project, List<String>> projectExpandCollapseRecordList;
 
     /**
      * Constructor
      */
     public ProjectPanel(MainWindow mainWindow) {
+        main = Main.getInstance();
         this.mainWindow = mainWindow;
+
+        projectList = Collections.synchronizedList(new SortedArrayList<Project>());
+        projectExpandCollapseRecordList = Collections.synchronizedMap(new TreeMap<Project, List<String>>());
 
         projectPanel = new JPanel();
         projectPanel.setBackground(projectPanel.getBackground().brighter());
         projectPanel.setLayout(new BorderLayout());
 
         rootNode = new DefaultMutableTreeNode(new ProjectTreeNode(ProjectTreeNode.Type.PROJECTS, "Projects", ""));
+
+        main.addShutdownEvent(100, new Runnable() {
+
+            @Override
+            public void run() {
+                List<DefaultMutableTreeNode> expandedNodeList = new ArrayList<DefaultMutableTreeNode>();
+                getAllExpandedNodes(tree, rootNode, expandedNodeList);
+
+                List<String> expandedFilePathList = new ArrayList<String>();
+                for (DefaultMutableTreeNode treeNode : expandedNodeList) {
+                    ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
+                    Object userObject = projectTreeNode.getUserObject();
+                    if (userObject instanceof DigestedFile) {
+                        expandedFilePathList.add(((DigestedFile) userObject).getFile().getAbsolutePath());
+                    }
+                }
+
+                Config config = main.getConfig();
+                synchronized (projectExpandCollapseRecordList) {
+                    for (Project project : projectExpandCollapseRecordList.keySet()) {
+                        StringBuilder sb = new StringBuilder();
+                        List<String> _projectExpandCollapseRecordList = projectExpandCollapseRecordList.get(project);
+                        for (String _path : _projectExpandCollapseRecordList) {
+                            if (expandedFilePathList.indexOf(_path) != -1) {
+                                if (sb.length() != 0) {
+                                    sb.append("\t");
+                                }
+                                sb.append(_path);
+                            }
+                        }
+                        config.setProperty("project_panel/" + project.getName(), sb.toString());
+                    }
+                }
+            }
+        });
 
         tree = new JTree(rootNode);
         tree.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
@@ -154,7 +212,7 @@ public class ProjectPanel {
                     ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
 
                     if (projectTreeNode.getType() == ProjectTreeNode.Type.FILE) {
-                        ProjectPanel.this.mainWindow.getCodePanel().add((DigestedFile) projectTreeNode.getUserObject());
+                        ProjectPanel.this.mainWindow.getCodePanel().add((DigestedFile) projectTreeNode.getUserObject(), true);
                     }
                 }
             }
@@ -169,6 +227,37 @@ public class ProjectPanel {
 
             @Override
             public void treeExpanded(TreeExpansionEvent event) {
+                TreePath path = event.getPath();
+                if (path.getPath().length > 1) {
+                    DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) path.getLastPathComponent();
+                    ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
+                    Object userObject = projectTreeNode.getUserObject();
+                    if (userObject == null) {
+                        return;
+                    }
+                    if (userObject instanceof DigestedFile) {
+                        DigestedFile digestedFile = (DigestedFile) userObject;
+                        Project project = digestedFile.getProject();
+                        String filePath = digestedFile.getFile().getAbsolutePath();
+
+                        synchronized (projectExpandCollapseRecordList) {
+                            boolean recordExist = false;
+
+                            List<String> projectExpandCollapseRecord = projectExpandCollapseRecordList.get(project);
+                            for (String _path : projectExpandCollapseRecord) {
+                                if (_path.startsWith(filePath)) {
+                                    recordExist = true;
+                                    break;
+                                }
+                            }
+
+                            if (!recordExist) {
+                                projectExpandCollapseRecord.add(filePath);
+                            }
+                        }
+                    } else if (userObject instanceof Project) {
+                    }
+                }
             }
 
             @Override
@@ -176,6 +265,37 @@ public class ProjectPanel {
                 TreePath path = event.getPath();
                 if (path.getPath().length == 1) {
                     tree.expandPath(path);
+                } else {
+                    DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) path.getLastPathComponent();
+                    ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
+                    Object userObject = projectTreeNode.getUserObject();
+                    if (userObject == null) {
+                        return;
+                    }
+                    if (userObject instanceof DigestedFile) {
+                        DigestedFile digestedFile = (DigestedFile) userObject;
+                        if (digestedFile == null) {
+                            return;
+                        }
+                        Project project = digestedFile.getProject();
+                        String filePath = digestedFile.getFile().getAbsolutePath();
+
+                        synchronized (projectExpandCollapseRecordList) {
+                            List<String> projectExpandCollapseRecord = projectExpandCollapseRecordList.get(project);
+                            Iterator<String> iterator = projectExpandCollapseRecord.iterator();
+                            while (iterator.hasNext()) {
+                                String _path = iterator.next();
+                                if (_path.equals(filePath)) {
+                                    iterator.remove();
+                                }
+                            }
+                        }
+                    } else if (userObject instanceof Project) {
+//                        synchronized (projectExpandCollapseRecordList) {
+//                            List<String> projectExpandCollapseRecord = projectExpandCollapseRecordList.get((Project) userObject);
+//                            projectExpandCollapseRecord.clear();
+//                        }
+                    }
                 }
             }
         });
@@ -185,6 +305,20 @@ public class ProjectPanel {
         treeScrollPane.setBorder(null);
         treeScrollPane.setViewportView(tree);
         projectPanel.add(treeScrollPane, BorderLayout.CENTER);
+    }
+
+    public void getAllExpandedNodes(JTree tree, DefaultMutableTreeNode node, List<DefaultMutableTreeNode> expandedNodeList) {
+        if (node.getChildCount() >= 0) {
+            Enumeration e = node.children();
+            while (e.hasMoreElements()) {
+                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) e.nextElement();
+
+                if (tree.isExpanded(new TreePath(((DefaultTreeModel) tree.getModel()).getPathToRoot(treeNode)))) {
+                    expandedNodeList.add(treeNode);
+                }
+                getAllExpandedNodes(tree, treeNode, expandedNodeList);
+            }
+        }
     }
 
     /**
@@ -200,21 +334,50 @@ public class ProjectPanel {
      * @param project the project to add
      */
     public void addProject(Project project) {
-        DefaultMutableTreeNode projectNode = new DefaultMutableTreeNode(new ProjectTreeNode(ProjectTreeNode.Type.PROJECT, "Project", null));
+        // project list
+        synchronized (projectList) {
+            if (projectList.indexOf(project) != -1) {
+                return;
+            }
+            projectList.add(project);
+        }
+
+        // expand collapse record
+        List<String> projectExpandCollapseRecord = new SortedArrayList<String>();
+        String projectExpandCollapseRecordString = main.getConfig().getProperty("project_panel/" + project.getName());
+        if (projectExpandCollapseRecordString != null) {
+            projectExpandCollapseRecord.addAll(Arrays.asList(projectExpandCollapseRecordString.split("\t")));
+        }
+        projectExpandCollapseRecordList.put(project, projectExpandCollapseRecord);
+
+        // tree nodes
+        ProjectTreeNode projectProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.PROJECT, project.getName(), null);
+        projectProjectTreeNode.setUserObject(project);
+        DefaultMutableTreeNode projectNode = new DefaultMutableTreeNode(projectProjectTreeNode);
         rootNode.add(projectNode);
 
-        DefaultMutableTreeNode sourceFilesNode = new DefaultMutableTreeNode(new ProjectTreeNode(ProjectTreeNode.Type.SOURCE_FILES, "Source Files", null));
+        ProjectTreeNode sourceFilesProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.SOURCE_FILES, "Source Files", null);
+        sourceFilesProjectTreeNode.setUserObject(project);
+        DefaultMutableTreeNode sourceFilesNode = new DefaultMutableTreeNode(sourceFilesProjectTreeNode);
         projectNode.add(sourceFilesNode);
+
+        List<TreePath> pathsToExpand = new ArrayList<TreePath>();
 
         List<DigestedFile> files = project.getDigestedData();
         for (DigestedFile digestedFile : files) {
-            addChildNodes(sourceFilesNode, digestedFile);
+            addChildNodes(projectExpandCollapseRecord, pathsToExpand, sourceFilesNode, digestedFile);
         }
 
         projectNode.add(new DefaultMutableTreeNode(new ProjectTreeNode(ProjectTreeNode.Type.PROPERTIES, "Properties", null)));
 
         // expand the root node
         tree.expandPath(tree.getPathForRow(0));
+
+        for (TreePath treePath : pathsToExpand) {
+            if (!tree.isExpanded(treePath)) {
+                tree.expandPath(treePath);
+            }
+        }
     }
 
     /**
@@ -222,7 +385,7 @@ public class ProjectPanel {
      * @param parentNode the parent tree node to add digestedFile to
      * @param digestedFile the file to add and recurse on
      */
-    public void addChildNodes(DefaultMutableTreeNode parentNode, DigestedFile digestedFile) {
+    public void addChildNodes(List<String> projectExpandCollapseRecord, List<TreePath> pathsToExpand, DefaultMutableTreeNode parentNode, DigestedFile digestedFile) {
         if (digestedFile.isDirectory()) {
             ProjectTreeNode folderProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FOLDER, digestedFile.getFile().getName(), null);
             folderProjectTreeNode.setUserObject(digestedFile);
@@ -232,12 +395,25 @@ public class ProjectPanel {
 
             List<DigestedFile> fileList = digestedFile.getFiles();
             for (DigestedFile _file : fileList) {
-                addChildNodes(folderNode, _file);
+                addChildNodes(projectExpandCollapseRecord, pathsToExpand, folderNode, _file);
+            }
+
+            synchronized (projectExpandCollapseRecordList) {
+                String directoryPath = digestedFile.getFile().getAbsolutePath();
+
+                for (String _path : projectExpandCollapseRecord) {
+                    if (directoryPath.equals(_path)) {
+                        TreePath pathToNode = new TreePath(((DefaultTreeModel) tree.getModel()).getPathToRoot(folderNode));
+                        pathsToExpand.add(pathToNode);
+                    }
+                }
             }
         } else {
             ProjectTreeNode fileProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FILE, digestedFile.getFile().getName(), null);
             fileProjectTreeNode.setUserObject(digestedFile);
-            parentNode.add(new DefaultMutableTreeNode(fileProjectTreeNode));
+
+            DefaultMutableTreeNode fileTreeNode = new DefaultMutableTreeNode(fileProjectTreeNode);
+            parentNode.add(fileTreeNode);
         }
     }
 
@@ -348,7 +524,7 @@ public class ProjectPanel {
     public static void main(String[] args) {
         ProjectPanel projectPanel = new ProjectPanel(null);
 
-        Project project = new Project();
+        Project project = new Project("Project Name");
         project.setAllowedExtensions(Arrays.asList(new String[]{".java"}));
         project.addFolder(new File(System.getProperty("user.dir")));
         projectPanel.addProject(project);

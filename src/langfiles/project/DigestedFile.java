@@ -2,11 +2,11 @@ package langfiles.project;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import langfiles.util.SortedArrayList;
 
 /**
  * This is used by {@link DigestedFile}. This class is immutable from outside the package.
@@ -30,6 +30,10 @@ public class DigestedFile implements Comparable<Object> {
      * If {@link #file} is a directory, this will store the wanted files contained in this directory.
      */
     protected List<DigestedFile> files;
+    /**
+     * The project that this digested file belongs.
+     */
+    protected Project project;
 
     /**
      * Constructor.
@@ -37,7 +41,8 @@ public class DigestedFile implements Comparable<Object> {
      * @param dataList
      * @param files 
      */
-    protected DigestedFile(File file, List<List<Component>> dataList, List<DigestedFile> files) {
+    protected DigestedFile(Project project, File file, List<List<Component>> dataList, List<DigestedFile> files) {
+        this.project = project;
         this.file = file;
         updateDataList(dataList);
         updateFiles(files);
@@ -57,8 +62,15 @@ public class DigestedFile implements Comparable<Object> {
      * @param files the new file list
      */
     protected final void updateFiles(List<DigestedFile> files) {
-        this.files = files;
-        Collections.sort(this.files);
+        this.files = new SortedArrayList<DigestedFile>(files);
+    }
+
+    /**
+     * Get the project object that this digested file belongs.
+     * @return the project
+     */
+    public Project getProject() {
+        return project;
     }
 
     /**

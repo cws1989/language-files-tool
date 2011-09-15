@@ -1,5 +1,7 @@
 package langfiles.project;
 
+import javax.swing.JPanel;
+
 /**
  * Code Viewer interface.
  * @author Chan Wai Shing <cws1989@gmail.com>
@@ -11,4 +13,6 @@ public interface CodeViewer {
      * @param digestedFile the digested file
      */
     void setCode(DigestedFile digestedFile);
+
+    JPanel getGUI();
 }

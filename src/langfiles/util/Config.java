@@ -43,6 +43,13 @@ public interface Config {
     List<ConfigChange> getChanges();
 
     /**
+     * Remove the property from the config file.
+     * @param key the key
+     * @return the value before removing, or null if no value exist with that key before
+     */
+    String removeProperty(String key);
+
+    /**
      * Get if there is any changes since last save.
      * @return true if there is any changes since last save
      */
