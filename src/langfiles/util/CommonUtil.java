@@ -1,6 +1,7 @@
 package langfiles.util;
 
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
@@ -8,12 +9,13 @@ import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -92,17 +94,16 @@ public class CommonUtil {
      * @throws IOException error occurred when reading the file
      */
     public static String readFile(File file) throws IOException {
-        if (!file.isFile() || !file.exists()) {
+        if (!file.isFile()) {
             return null;
         }
+
         byte[] buffer = new byte[(int) file.length()];
-        try {
-            FileInputStream fileIn = new FileInputStream(file);
-            fileIn.read(buffer);
-            fileIn.close();
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(CommonUtil.class.getName()).log(Level.SEVERE, null, ex);
-        }
+
+        FileInputStream fileIn = new FileInputStream(file);
+        fileIn.read(buffer);
+        fileIn.close();
+
         return new String(buffer);
     }
 
@@ -139,8 +140,8 @@ public class CommonUtil {
      * @return the files that match the requirements
      */
     public static List<File> getFiles(File directory, List<String> allowedExtensions) {
-        int extensionsLength = allowedExtensions.size();
-        for (int i = 0; i < extensionsLength; i++) {
+        // remove the first dot of the extension (if any)
+        for (int i = 0, extensionsLength = allowedExtensions.size(); i < extensionsLength; i++) {
             ListIterator<String> iterator = allowedExtensions.listIterator();
             while (iterator.hasNext()) {
                 String ext = iterator.next();
@@ -152,7 +153,8 @@ public class CommonUtil {
 
         List<File> returnList = new ArrayList<File>();
 
-        List<File> tempList = getFiles(directory);
+        List<File> tempList = new ArrayList<File>();
+        getFilesRecusive(tempList, directory);
         for (File file : tempList) {
             String fileExtension = getFileExtension(file.getName());
             if (allowedExtensions.isEmpty() || allowedExtensions.indexOf(fileExtension) != -1) {
@@ -165,17 +167,6 @@ public class CommonUtil {
 
     /**
      * Private use for {@link #getFiles(java.io.File, java.util.List)}.
-     * @param directory the directory to get files from
-     * @return a list of all the files with that directory recursively
-     */
-    private static List<File> getFiles(File directory) {
-        List<File> returnList = new ArrayList<File>();
-        getFilesRecusive(returnList, directory);
-        return returnList;
-    }
-
-    /**
-     * Private use for {@link #getFiles(java.io.File)}.
      * @param existingList a list of existing files, for redundancy/loop checking
      * @param directory the directory to get files from
      */
@@ -209,14 +200,14 @@ public class CommonUtil {
      * @return the file extension
      */
     public static String getFileExtension(String filePath) {
-        filePath = removeFileDirectory(filePath);
+        String fileName = removeFileDirectory(filePath);
 
-        int pos = filePath.indexOf('.');
+        int pos = fileName.indexOf('.');
         if (pos != -1) {
-            return filePath.substring(pos + 1);
+            return fileName.substring(pos + 1);
         }
 
-        return filePath;
+        return fileName;
     }
 
     /**
@@ -230,14 +221,14 @@ public class CommonUtil {
      * @return the file name
      */
     public static String getFileName(String filePath) {
-        filePath = removeFileDirectory(filePath);
+        String fileName = removeFileDirectory(filePath);
 
-        int pos = filePath.indexOf('.');
+        int pos = fileName.indexOf('.');
         if (pos != -1 && pos != 0) {
-            return filePath.substring(0, pos);
+            return fileName.substring(0, pos);
         }
 
-        return filePath;
+        return fileName;
     }
 
     /**
@@ -250,17 +241,17 @@ public class CommonUtil {
      * @return the file name
      */
     private static String removeFileDirectory(String filePath) {
-        filePath = filePath.replace((CharSequence) "\\", (CharSequence) "/");
+        String fileName = filePath.replace((CharSequence) "\\", (CharSequence) "/");
 
-        int pos = filePath.lastIndexOf('/');
+        int pos = fileName.lastIndexOf('/');
         if (pos != -1) {
-            return filePath.substring(pos + 1);
+            return fileName.substring(pos + 1);
         }
 
-        return filePath;
+        return fileName;
     }
     /**
-     * The graphics to be used to get the FontMetrics, see {@link {#getFontMetrics(java.awt.Font)}.
+     * The graphics to be used to get the FontMetrics, see {@link {#getFontMetrics(java.awt.Font)}. Not lazy initialization.
      */
     private final static Graphics graphicsForFontMetrics = (new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)).getGraphics();
 
@@ -289,7 +280,6 @@ public class CommonUtil {
             try {
                 directory.mkdir();
             } catch (SecurityException ex) {
-                Logger.getLogger(CommonUtil.class.getName()).log(Level.SEVERE, null, ex);
                 return false;
             }
         }
@@ -318,18 +308,21 @@ public class CommonUtil {
      */
     public static void centerWindow(Window window) {
         Toolkit toolkit = window.getToolkit();
-        int Xpos = (toolkit.getScreenSize().width - window.getSize().width) / 2;
-        int Ypos = (toolkit.getScreenSize().height - window.getSize().height) / 2;
-        window.setBounds(Xpos, Ypos, window.getSize().width, window.getSize().height);
+        Dimension screenSize = toolkit.getScreenSize();
+        Dimension windowSize = window.getSize();
+        int Xpos = (screenSize.width - windowSize.width) / 2;
+        int Ypos = (screenSize.height - windowSize.height) / 2;
+        window.setBounds(Xpos, Ypos, windowSize.width, windowSize.height);
     }
 
     /**
      * Set tooltip dismiss delay to delayTimeInMilli temporarily when mouseover the component, reset to default after mouseout.
      * @param component the component to set tooltip dismiss delay on
      * @param delayTimeInMilli the delay time in milli second
+     * @return the MouseListener that added to the component
      */
-    public static void setTooltipDismissDelay(Component component, final int delayTimeInMilli) {
-        component.addMouseListener(new MouseAdapter() {
+    public static MouseListener setTooltipDismissDelay(Component component, final int delayTimeInMilli) {
+        MouseListener mouseListener = new MouseAdapter() {
 
             private int defaultDismissDelay;
 
@@ -343,35 +336,54 @@ public class CommonUtil {
             public void mouseExited(MouseEvent me) {
                 ToolTipManager.sharedInstance().setDismissDelay(defaultDismissDelay);
             }
-        });
+        };
+        component.addMouseListener(mouseListener);
+        return mouseListener;
     }
 
     /**
-     * Set undo (Ctrl + Z) and redo (Ctrl + Y) operation on the component.
+     * Set undo (Ctrl + Z) and redo (Ctrl + Y) function on the component.
      * @param component the text component
+     * @return the KeyListener that added to the component
      */
-    public static void setUndoManager(JTextComponent component) {
-        final JTextComponent textComponent = component;
+    public static KeyListener setUndoManager(final JTextComponent component) {
         final UndoManager undoManager = new UndoManager();
-        textComponent.getDocument().addUndoableEditListener(undoManager);
-        textComponent.addKeyListener(new KeyAdapter() {
+        KeyListener listener = new KeyAdapter() {
+
+            private boolean initialized = false;
+            private boolean canUndo;
+            private boolean canRedo;
 
             @Override
             public void keyPressed(KeyEvent e) {
-                if (!e.getSource().equals(textComponent) || e.getModifiers() != KeyEvent.CTRL_MASK) {
+                if (!e.getSource().equals(component) || e.getModifiers() != KeyEvent.CTRL_MASK) {
                     return;
                 }
+
+                // no synchronization needed
+                if (!initialized) {
+                    canUndo = undoManager.canUndo();
+                    canRedo = undoManager.canRedo();
+                    initialized = true;
+                }
+
                 int keyCode = e.getKeyCode();
-                if (keyCode == KeyEvent.VK_Z) {
-                    if (undoManager.canUndo()) {
-                        undoManager.undo();
-                    }
-                } else if (keyCode == KeyEvent.VK_Y) {
-                    if (undoManager.canRedo()) {
-                        undoManager.redo();
-                    }
+                switch (keyCode) {
+                    case KeyEvent.VK_Z:
+                        if (canUndo) {
+                            undoManager.undo();
+                        }
+                        break;
+                    case KeyEvent.VK_Y:
+                        if (canRedo) {
+                            undoManager.redo();
+                        }
+                        break;
                 }
             }
-        });
+        };
+        component.getDocument().addUndoableEditListener(undoManager);
+        component.addKeyListener(listener);
+        return listener;
     }
 }

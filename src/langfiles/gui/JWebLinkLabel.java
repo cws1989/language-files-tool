@@ -100,7 +100,7 @@ public class JWebLinkLabel extends JLabel {
     /**
      * Initialization function.
      */
-    protected final void webLinkInitialize() {
+    private void webLinkInitialize() {
         try {
             desktop = Desktop.getDesktop();
         } catch (HeadlessException ex) {

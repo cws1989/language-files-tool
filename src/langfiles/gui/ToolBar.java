@@ -51,12 +51,12 @@ public class ToolBar {
      */
     public ToolBar(MainWindow mainWindow) {
         this.mainWindow = mainWindow;
+        componentsText = new HashMap<Component, String>();
 
-        String window_show_icon_text = Main.getInstance().getConfig().getProperty("window/show_icon_text");
+        String window_show_icon_text = Main.getInstance().getPreference().getProperty("window/show_icon_text");
         boolean isWindowShowIconText = window_show_icon_text != null ? window_show_icon_text.equals("true") : true;
 
         //<editor-fold defaultstate="collapsed" desc="popup menu">
-        popupMenu = new JPopupMenu();
         showIconTextMenuItem = new JCheckBoxMenuItem("Show Icon Text");
         showIconTextMenuItem.setActionCommand("show_icon_text");
         showIconTextMenuItem.setSelected(isWindowShowIconText);
@@ -70,6 +70,8 @@ public class ToolBar {
                 ToolBar.this.mainWindow.getActionListener().actionPerformed(actionEvent);
             }
         });
+
+        popupMenu = new JPopupMenu();
         popupMenu.add(showIconTextMenuItem);
         //</editor-fold>
 
@@ -85,8 +87,6 @@ public class ToolBar {
                 }
             }
         });
-
-        componentsText = new HashMap<Component, String>();
 
         addButtons();
 

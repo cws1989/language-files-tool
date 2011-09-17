@@ -4,6 +4,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.io.File;
@@ -36,6 +38,9 @@ public class SwingCodeViewer implements CodeViewer {
      * The font of the line number text.
      */
     protected Font lineNumberFont = new Font("Verdana", Font.PLAIN, 10);
+    protected Color lineNumberBorderColor = new Color(184, 184, 184);
+    protected Color lineNumberBackgroundColor = new Color(233, 232, 226);
+    protected FontMetrics lineNumberFontFontMetrics;
     protected JPanel guiPanel;
     /**
      * The scroll pane that contain the codePanel.
@@ -75,6 +80,8 @@ public class SwingCodeViewer implements CodeViewer {
         guiPanel = new JPanel();
         guiPanel.setLayout(new BorderLayout());
         guiPanel.add(scrollPane, BorderLayout.CENTER);
+
+        lineNumberFontFontMetrics = CommonUtil.getFontMetrics(lineNumberFont);
     }
 
     /**
@@ -86,6 +93,10 @@ public class SwingCodeViewer implements CodeViewer {
         return guiPanel;
     }
 
+    /**
+     * @todo use one panel to replace row header panel
+     * @todo use one panel with null layout & drawString to replace JLabel and rowContainer in codePanel
+     */
     @Override
     public void setCode(DigestedFile digestedFile) {
         codePanel.removeAll();
@@ -105,14 +116,16 @@ public class SwingCodeViewer implements CodeViewer {
             List<Component> row = dataList.get(i);
 
             Box rowContainer = Box.createHorizontalBox();
+            rowContainer.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
 
-            //rowContainer.add(createLineNumberPanel(i + 1, lineNumberBoxWidth));
-            rowContainer.add(Box.createRigidArea(new Dimension(10, 1)));
+
+//            rowContainer.add(createLineNumberPanel(i + 1, lineNumberBoxWidth));
+//            rowContainer.add(Box.createRigidArea(new Dimension(10, 1)));
 
             for (Component component : row) {
                 switch (component.getType()) {
                     case CODE:
-                        JTextField beforeMatch = createTextField(component.getContent());
+                        JLabel beforeMatch = createLabel(component.getContent());
                         rowContainer.add(beforeMatch);
                         break;
                     case TEXT:
@@ -128,6 +141,7 @@ public class SwingCodeViewer implements CodeViewer {
             rowContainer.add(Box.createHorizontalGlue());
 
             c.gridy = i;
+            // may use one panel to replace this
             rowHeaderPanel.add(createLineNumberPanel(i + 1, lineNumberBoxWidth, rowContainer.getPreferredSize().height), c);
             codePanel.add(rowContainer, c);
         }
@@ -155,24 +169,65 @@ public class SwingCodeViewer implements CodeViewer {
      * @param panelWidth the fix width of the panel
      * @return the line number panel
      */
-    protected JPanel createLineNumberPanel(int lineNumber, int panelWidth, int panelHeight) {
-        JPanel panel = new JPanel();
+    protected Box createLineNumberPanel(final int lineNumber, final int panelWidth, final int panelHeight) {
+        Box panel = new Box(BoxLayout.X_AXIS) {
 
-        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-        panel.setBackground(new Color(233, 232, 226));
-        panel.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(184, 184, 184)));
+            private Dimension dim = new Dimension(panelWidth, panelHeight);
+            private String lineNumberString = Integer.toString(lineNumber);
+            private boolean initialized = false;
+            private int fontX;
+            private int fontY;
 
-        JLabel label = new JLabel();
-        label.setText(Integer.toString(lineNumber));
-        label.setFont(lineNumberFont);
-        label.setOpaque(false);
-        label.setHorizontalAlignment(JLabel.RIGHT);
-        label.setPreferredSize(new Dimension(panelWidth, panelHeight));
-        label.setMinimumSize(label.getPreferredSize());
-        label.setMaximumSize(new Dimension(panelWidth, 65535));
-        panel.add(label);
+            @Override
+            public void paint(Graphics g) {
+                if (!initialized) {
+                    int textWidth = lineNumberFontFontMetrics.stringWidth(lineNumberString);
+                    int textHeight = lineNumberFontFontMetrics.getHeight();
 
-        panel.add(Box.createRigidArea(new Dimension(2, 1)));
+                    fontX = (dim.width - textWidth) - 2;
+//                    fontY = ((dim.height - textHeight) / 2) + lineNumberFontFontMetrics.getAscent() - lineNumberFontFontMetrics.getDescent();
+                    fontY = ((dim.height - textHeight) / 2) + lineNumberFontFontMetrics.getAscent();
+
+                    initialized = true;
+                }
+
+                g.setColor(lineNumberBackgroundColor);
+                g.fillRect(0, 0, dim.width - 1, dim.height);
+
+                g.setColor(lineNumberBorderColor);
+                g.drawLine(dim.width - 1, 0, dim.width - 1, dim.height);
+
+                g.setColor(Color.black);
+                g.setFont(lineNumberFont);
+                g.drawString(lineNumberString, fontX, fontY);
+            }
+
+            @Override
+            public Dimension getSize() {
+                return dim;
+            }
+
+            @Override
+            public Dimension getPreferredSize() {
+                return dim;
+            }
+        };
+
+//        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+//        panel.setBackground(new Color(233, 232, 226));
+//        panel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(184, 184, 184)), BorderFactory.createEmptyBorder(0, 0, 0, 2)));
+
+//        JLabel label = new JLabel();
+//        label.setText(Integer.toString(lineNumber));
+//        label.setFont(lineNumberFont);
+//        label.setOpaque(false);
+//        label.setHorizontalAlignment(JLabel.RIGHT);
+//        label.setPreferredSize(new Dimension(panelWidth, panelHeight));
+//        label.setMinimumSize(label.getPreferredSize());
+//        label.setMaximumSize(new Dimension(panelWidth, 65535));
+//        panel.add(label);
+
+//        panel.add(Box.createRigidArea(new Dimension(2, 1)));
 
         return panel;
     }
@@ -197,6 +252,24 @@ public class SwingCodeViewer implements CodeViewer {
         checkBox.setOpaque(false);
 
         return checkBox;
+    }
+
+    /**
+     * Create the label for the text.
+     * @param text the text to be shown
+     * @return the JLabel
+     */
+    protected JLabel createLabel(String text) {
+        JLabel label = new JLabel();
+
+        label.setText(text);
+        Dimension size = new Dimension(label.getPreferredSize().width, 15);
+        label.setPreferredSize(size);
+        label.setMinimumSize(size);
+        label.setMaximumSize(size);
+        label.setOpaque(false);
+
+        return label;
     }
 
     /**
@@ -227,7 +300,7 @@ public class SwingCodeViewer implements CodeViewer {
         CommonUtil.setLookAndFeel();
 
         Project handler = new Project("Project Name");
-        handler.addFile(new File("build.xml"));
+        handler.add(new File("build.xml"));
         List<DigestedFile> digestedFileList = handler.getDigestedData();
 
         SwingCodeViewer codePanel = new SwingCodeViewer();

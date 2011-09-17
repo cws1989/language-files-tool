@@ -1,22 +1,17 @@
 package langfiles;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import langfiles.util.CommonUtil;
 import langfiles.util.LoggingPrintStream;
 import langfiles.gui.MainWindowEventListener;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.InvalidPropertiesFormatException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -26,13 +21,13 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.event.ChangeEvent;
 import langfiles.gui.MainWindow;
 import langfiles.project.Project;
 import langfiles.util.Config;
-import net.contentobjects.jnotify.JNotify;
-import net.contentobjects.jnotify.JNotifyAdapter;
-import net.contentobjects.jnotify.JNotifyException;
+import langfiles.util.ConfigTool;
 
 /**
  * The main class.
@@ -60,6 +55,14 @@ public class Main {
      * Configuration, {@link java.util.Properties} through {@link langfiles.util.Config} interface. It is loaded from {@link #configFilePath}.
      */
     private Config config;
+    /**
+     * The path of the configuration/setting file.
+     */
+    private String preferenceFilePath;
+    /**
+     * Preference, {@link java.util.Properties} through {@link langfiles.util.Config} interface. It is loaded from {@link #preferenceFilePath}.
+     */
+    private Config preference;
     /**
      * Shutdown hook list. Things that has to be done before program exit/shutdown.
      */
@@ -125,9 +128,9 @@ public class Main {
         //</editor-fold>
 
         //<editor-fold defaultstate="collapsed" desc="configuration">
-        configFilePath = storageDirectoryPath + "/config.xml";
+        configFilePath = new File(storageDirectoryPath + "/config.xml").getAbsolutePath();
         try {
-            config = new MainConfig(configFilePath);
+            config = new ConfigTool(configFilePath);
         } catch (IOException ex) {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -138,6 +141,28 @@ public class Main {
                 if (config.isChanged()) {
                     try {
                         config.save();
+                    } catch (IOException ex) {
+                        Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+            }
+        });
+        //</editor-fold>
+
+        //<editor-fold defaultstate="collapsed" desc="preference">
+        preferenceFilePath = new File(storageDirectoryPath + "/preference.xml").getAbsolutePath();
+        try {
+            preference = new ConfigTool(preferenceFilePath);
+        } catch (IOException ex) {
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        addShutdownEvent(101, new Runnable() {
+
+            @Override
+            public void run() {
+                if (preference.isChanged()) {
+                    try {
+                        preference.save();
                     } catch (IOException ex) {
                         Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
                     }
@@ -179,14 +204,6 @@ public class Main {
     }
 
     /**
-     * Initialize those need this Main object (e.g. create GUI).
-     */
-    private void initialize() {
-        // GUI
-        openNewWindow();
-    }
-
-    /**
      * Get the singleton instance of Main.
      * @return the main object
      */
@@ -210,6 +227,14 @@ public class Main {
     }
 
     /**
+     * Get preference.
+     * @return the preference
+     */
+    public Config getPreference() {
+        return preference;
+    }
+
+    /**
      * Return the storage directory path.
      * @return the storage directory path
      */
@@ -228,8 +253,8 @@ public class Main {
     /**
      * Open a new MainWindow.
      */
-    public void openNewWindow() {
-        MainWindow window = new MainWindow();
+    public void openNewWindow(List<Project> projectList) {
+        MainWindow window = new MainWindow(projectList);
         window.addMainWindowEventListener(mainWindowEventListener);
         mainWindowList.add(window);
     }
@@ -240,7 +265,7 @@ public class Main {
      * @return the InputStream of the logging properties file
      */
     private InputStream getLoggingProperties(String storageDirectoryPath) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(512);
 
         sb.append("handlers = java.util.logging.FileHandler, langfiles.util.WrappedConsoleHandler\n");
         sb.append(".level = INFO\n");
@@ -262,7 +287,7 @@ public class Main {
      * @param priorityValue smaller value will be executed first
      * @param task the task to execute before shutdown
      */
-    public final void addShutdownEvent(int priorityValue, Runnable task) {
+    public void addShutdownEvent(int priorityValue, Runnable task) {
         synchronized (shutdownHookList) {
             List<Runnable> taskList = shutdownHookList.get(priorityValue);
             if (taskList == null) {
@@ -290,155 +315,6 @@ public class Main {
     }
 
     /**
-     * The configuration {@link java.util.Properties} wrapper.
-     */
-    private class MainConfig implements Config {
-
-        /**
-         * The path of the configuration file, must not return null for {@link java.io.File#getParent()}.
-         */
-        private String configPath;
-        /**
-         * The configuration {@link java.util.Properties}.
-         */
-        private Properties config;
-        /**
-         * Indicator that indicate whether the config has been changed or not.
-         */
-        private boolean isChanged = false;
-        /**
-         * The list that record the config changes.
-         */
-        private final List<ConfigChange> configChanges;
-        /**
-         * The watch id used by JNotify to listen on config file modification event.
-         */
-        private int watchId = 0;
-
-        /**
-         * Constructor.
-         * @param configPath {@see #configPath}
-         * @throws IOException read config file IO exception
-         */
-        private MainConfig(String configPath) throws IOException {
-            this.configPath = configPath;
-            this.configChanges = Collections.synchronizedList(new ArrayList<ConfigChange>());
-            reload();
-
-            try {
-                addWatch();
-                addShutdownEvent(200, new Runnable() {
-
-                    @Override
-                    public void run() {
-                        removeWatch();
-                    }
-                });
-            } catch (JNotifyException ex) {
-                // ignore
-            }
-        }
-
-        /**
-         * Listen on the config file modification event.
-         * @throws JNotifyException error occurred when setting the event listener
-         */
-        private void addWatch() throws JNotifyException {
-            watchId = JNotify.addWatch(new File(configPath).getParent(), JNotify.FILE_MODIFIED, false, new JNotifyAdapter() {
-
-                @Override
-                public void fileModified(int wd, String rootPath, String name) {
-                    try {
-                        reload();
-                    } catch (IOException ex) {
-                        Logger.getLogger(MainConfig.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }
-            });
-        }
-
-        /**
-         * Remove the config file modification event listener.
-         * @throws JNotifyException error occurred when removing the event listener
-         */
-        private void removeWatch() {
-            try {
-                JNotify.removeWatch(watchId);
-            } catch (JNotifyException ex) {
-                Logger.getLogger(MainConfig.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-
-        @Override
-        public final void reload() throws IOException {
-            File configFile = new File(configPath);
-            if (!configFile.exists()) {
-                configFile.createNewFile();
-            }
-
-            InputStream in = new BufferedInputStream(new FileInputStream(configPath));
-            config = new Properties();
-            try {
-                config.loadFromXML(in);
-            } catch (InvalidPropertiesFormatException ex) {
-                config = new Properties();
-                // ignore
-            }
-            in.close();
-        }
-
-        @Override
-        public void save() throws IOException {
-            synchronized (configChanges) {
-                removeWatch();
-
-                File configFile = new File(configPath);
-                OutputStream out = new BufferedOutputStream(new FileOutputStream(configFile));
-                config.storeToXML(out, "You are not supposed to edit this file directly.");
-                out.close();
-
-                configChanges.clear();
-                isChanged = false;
-
-                addWatch();
-            }
-        }
-
-        @Override
-        public String getProperty(String key) {
-            return config.getProperty(key);
-        }
-
-        @Override
-        public String setProperty(String key, String value) {
-            String returnObject = null;
-            synchronized (configChanges) {
-                returnObject = (String) config.setProperty(key, value);
-                if (returnObject == null || !returnObject.equals(value)) {
-                    configChanges.add(new ConfigChange(key, value));
-                    isChanged = true;
-                }
-            }
-            return returnObject;
-        }
-
-        @Override
-        public String removeProperty(String key) {
-            return (String) config.remove(key);
-        }
-
-        @Override
-        public List<ConfigChange> getChanges() {
-            return new ArrayList<ConfigChange>(configChanges);
-        }
-
-        @Override
-        public boolean isChanged() {
-            return isChanged;
-        }
-    }
-
-    /**
      * Program starter.
      */
     public static void main(String[] args) {
@@ -447,14 +323,12 @@ public class Main {
             @Override
             public void run() {
                 Main.main = new Main();
-                main.initialize();
 
                 // for test purpose
-                List<MainWindow> mainWindowList = main.getWindows();
                 Project project = new Project("Language Files Tool");
                 project.setAllowedExtensions(Arrays.asList(new String[]{".java"}));
-                project.addFolder(new File(System.getProperty("user.dir")));
-                mainWindowList.get(0).addProject(project);
+                project.add(new File(System.getProperty("user.dir")));
+                main.openNewWindow(Arrays.asList(new Project[]{project}));
             }
         });
     }

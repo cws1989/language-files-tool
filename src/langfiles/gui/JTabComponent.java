@@ -52,37 +52,39 @@ public class JTabComponent extends JPanel {
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 3));
         add(titleLabel);
 
-        add(new TabCloseButton());
+        add(new TabCloseButton(pane, this));
     }
 
     /**
      * The close button of the tab component.
      */
-    private class TabCloseButton extends JButton {
+    private static class TabCloseButton extends JButton {
 
         private static final long serialVersionUID = 1L;
-        /**
-         * Default dimension of the button.
-         */
-        private int size = 14;
+        private JTabbedPane pane;
+        private JTabComponent tabComponent;
 
         /**
          * The constructor.
          */
-        private TabCloseButton() {
-            setPreferredSize(new Dimension(size, size));
+        private TabCloseButton(JTabbedPane pane, JTabComponent tabComponent) {
+            this.pane = pane;
+            this.tabComponent = tabComponent;
+
+            setPreferredSize(new Dimension(11, 14));
             setToolTipText("Close");
             setUI(new BasicButtonUI());
             setContentAreaFilled(false);
             setFocusable(false);
             setRolloverEnabled(true);
+            setBorder(null);
             addActionListener(new ActionListener() {
 
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    int tabIndex = pane.indexOfTabComponent(JTabComponent.this);
+                    int tabIndex = TabCloseButton.this.pane.indexOfTabComponent(TabCloseButton.this.tabComponent);
                     if (tabIndex != -1) {
-                        pane.remove(tabIndex);
+                        TabCloseButton.this.pane.remove(tabIndex);
                     }
                 }
             });
@@ -109,9 +111,8 @@ public class JTabComponent extends JPanel {
             } else {
                 graphics2D.setColor(getBackground().darker().darker());
             }
-            int borderWidth = (size - 4) / 2;
-            graphics2D.drawLine(borderWidth, borderWidth, getWidth() - borderWidth, getHeight() - borderWidth);
-            graphics2D.drawLine(borderWidth, getHeight() - borderWidth, getWidth() - borderWidth, borderWidth);
+            graphics2D.drawLine(5, 5, getWidth() - 2, getHeight() - 5);
+            graphics2D.drawLine(5, getHeight() - 5, getWidth() - 2, 5);
 
             graphics2D.dispose();
         }

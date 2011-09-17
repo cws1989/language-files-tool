@@ -50,9 +50,10 @@ public class CodePanel {
      * Constructor.
      */
     public CodePanel(MainWindow mainWindow) {
-        this.main = Main.getInstance();
+        main = Main.getInstance();
+
         this.mainWindow = mainWindow;
-        this.threadExecutor = Executors.newSingleThreadExecutor();
+        threadExecutor = Executors.newSingleThreadExecutor();
 
         tabbedPane = new JTabbedPane();
         tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
@@ -95,20 +96,16 @@ public class CodePanel {
                     selectedTab = codePanelTab.getDigestedFile().getFile().getAbsolutePath();
                 }
 
-                Config config = main.getConfig();
-                config.setProperty("code_panel", sb.toString());
-                config.setProperty("code_panel_selected", selectedTab);
+                Config preference = main.getPreference();
+                preference.setProperty("code_panel/opened", sb.toString());
+                preference.setProperty("code_panel/selected", selectedTab);
             }
         });
 
-        Config config = main.getConfig();
-        String codePanelRecordString = config.getProperty("code_panel");
-        if (codePanelRecordString != null) {
-            lastOpenedRecordList = new ArrayList(Arrays.asList(codePanelRecordString.split("\t")));
-        } else {
-            lastOpenedRecordList = new ArrayList();
-        }
-        lastSelectedTabFileAbsolutePath = config.getProperty("code_panel_selected");
+        Config preference = main.getPreference();
+        String codePanelRecordString = preference.getProperty("code_panel/opened");
+        lastOpenedRecordList = codePanelRecordString != null ? new ArrayList<String>(Arrays.asList(codePanelRecordString.split("\t"))) : new ArrayList<String>();
+        lastSelectedTabFileAbsolutePath = preference.getProperty("code_panel/selected");
 
         // add global listener to listen to ctrl + w to close current selected tab
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(new KeyEventDispatcher() {
@@ -198,6 +195,8 @@ public class CodePanel {
 
     private void recheckLastOpenedFile() {
         Iterator<String> iterator = (lastOpenedRecordList).iterator();
+//        long t1, t2;
+//        t1 = System.currentTimeMillis();
         while (iterator.hasNext()) {
             String codePanelRecord = iterator.next();
             DigestedFile digestedFile = mainWindow.getDigestedFileByAbsolutePath(codePanelRecord);
@@ -206,21 +205,21 @@ public class CodePanel {
                 iterator.remove();
             }
         }
+//        t2 = System.currentTimeMillis();
+//        System.out.println((t2 - t1));
     }
 
-    private class CodePanelTab extends JPanel {
+    private static class CodePanelTab extends JPanel {
 
         private static final long serialVersionUID = 1L;
         private CodeViewer codeViewer;
         private DigestedFile digestedFile;
 
         private CodePanelTab(CodeViewer codeViewer, DigestedFile digestedFile) {
-            setLayout(new BorderLayout());
-
-            add(codeViewer.getGUI(), BorderLayout.CENTER);
-
             this.codeViewer = codeViewer;
             this.digestedFile = digestedFile;
+            setLayout(new BorderLayout());
+            add(codeViewer.getGUI(), BorderLayout.CENTER);
         }
 
         public CodeViewer getCodeViewer() {

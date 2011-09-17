@@ -109,14 +109,9 @@ public class MenuBar {
     protected final void addWindowMenu() {
         JMenu menu;
 
-        menu = new JMenu("Window");
-        menu.setMnemonic(KeyEvent.VK_W);
-        menuBar.add(menu);
-
-        String window_show_icon_text = Main.getInstance().getConfig().getProperty("window/show_icon_text");
+        String window_show_icon_text = Main.getInstance().getPreference().getProperty("window/show_icon_text");
         boolean isWindowShowIconText = window_show_icon_text != null ? window_show_icon_text.equals("true") : true;
-
-        menu.add(showIconTextMenuItem = makeCheckBoxMenuItem(null, "show_icon_text", "Show Icon Text", isWindowShowIconText));
+        showIconTextMenuItem = makeCheckBoxMenuItem(null, "show_icon_text", "Show Icon Text", isWindowShowIconText);
         showIconTextMenuItem.removeActionListener(mainWindow.getActionListener());
         showIconTextMenuItem.addActionListener(new ActionListener() {
 
@@ -128,6 +123,11 @@ public class MenuBar {
                 MenuBar.this.mainWindow.getActionListener().actionPerformed(actionEvent);
             }
         });
+
+        menu = new JMenu("Window");
+        menu.setMnemonic(KeyEvent.VK_W);
+        menu.add(showIconTextMenuItem = makeCheckBoxMenuItem(null, "show_icon_text", "Show Icon Text", isWindowShowIconText));
+        menuBar.add(menu);
 
         setShowIconText(isWindowShowIconText);
     }

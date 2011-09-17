@@ -229,6 +229,7 @@ public class RegularExpressionTester {
         synchronized (lock) {
             if (threadExecutor != null) {
                 threadExecutor.shutdownNow();
+                threadExecutor = null;
             }
         }
     }
@@ -653,6 +654,15 @@ public class RegularExpressionTester {
         public void taskFinished() {
             testButton.setText("Test");
             taskRunning = false;
+        }
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        if (threadExecutor != null) {
+            threadExecutor.shutdownNow();
+            Logger.getLogger(RegularExpressionTester.class.getName()).log(Level.SEVERE, "Regular Expression Tester not closed (invoke close()) properly.");
         }
     }
 

@@ -12,6 +12,7 @@ public class SortedArrayList<E extends Comparable<? super E>> extends ArrayList<
 
     private static final long serialVersionUID = 1L;
     private boolean isSorting = false;
+    private final Object sortingLock = new Object();
 
     public SortedArrayList() {
         super();
@@ -81,9 +82,14 @@ public class SortedArrayList<E extends Comparable<? super E>> extends ArrayList<
     }
 
     private void sortList() {
-        if (!isSorting) {
+        synchronized (sortingLock) {
+            if (isSorting) {
+                return;
+            }
             isSorting = true;
-            Collections.sort(this);
+        }
+        Collections.sort(this);
+        synchronized (sortingLock) {
             isSorting = false;
         }
     }

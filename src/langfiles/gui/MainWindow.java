@@ -22,6 +22,7 @@ import javax.swing.event.ChangeEvent;
 import langfiles.Main;
 import langfiles.project.DigestedFile;
 import langfiles.project.Project;
+import langfiles.project.ProjectEventListener;
 import langfiles.util.CommonUtil;
 import langfiles.util.Config;
 
@@ -66,16 +67,15 @@ public class MainWindow {
     /**
      * 
      */
-    private boolean frameOpened = false;
-    private final List<Project> delayedAddProjectList;
+    private final List<ProjectEventListener> projectEventListenerList;
 
     /**
      * Constructor.
      */
-    public MainWindow() {
+    public MainWindow(List<Project> projectList) {
         mainWindowEventListenerList = Collections.synchronizedList(new ArrayList<MainWindowEventListener>());
-        delayedAddProjectList = Collections.synchronizedList(new ArrayList<Project>());
-        projectList = new ArrayList<Project>();
+        this.projectList = Collections.synchronizedList(new ArrayList<Project>(projectList));
+        projectEventListenerList = Collections.synchronizedList(new ArrayList<ProjectEventListener>());
 
         // should be initialized before initialize menu bar, content panel, ...
         actionListener = new ActionListener() {
@@ -154,7 +154,7 @@ public class MainWindow {
                     boolean showIconText = e.getWhen() == 1;
 
                     Main main = Main.getInstance();
-                    main.getConfig().setProperty("window/show_icon_text", Boolean.toString(showIconText));
+                    main.getPreference().setProperty("window/show_icon_text", Boolean.toString(showIconText));
 
                     getToolBar().setShowIconText(showIconText);
                     getMenuBar().setShowIconText(showIconText);
@@ -165,58 +165,41 @@ public class MainWindow {
         menuBar = new MenuBar(this);
 
         //<editor-fold defaultstate="collapsed" desc="content panel">
-        JPanel contentPanel = new JPanel();
-        contentPanel.setPreferredSize(new Dimension(1000, 630));
-        contentPanel.setLayout(new BorderLayout());
-
         toolBar = new ToolBar(this);
-        contentPanel.add(toolBar.getGUI(), BorderLayout.NORTH);
+        projectPanel = new ProjectPanel(this);
+        codePanel = new CodePanel(this);
 
         final JSplitPane splitPane = new JSplitPane();
         Color panelBackground = splitPane.getBackground();
         splitPane.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, panelBackground.brighter()), BorderFactory.createMatteBorder(1, 0, 0, 0, panelBackground.darker())));
         splitPane.setDividerSize(2);
-        contentPanel.add(splitPane, BorderLayout.CENTER);
-
-        projectPanel = new ProjectPanel(this);
         splitPane.setLeftComponent(projectPanel.getGUI());
-
-        codePanel = new CodePanel(this);
         splitPane.setRightComponent(codePanel.getGUI());
+        String splitPaneDividerLocation = Main.getInstance().getPreference().getProperty("main_window/split_pane_divider_location");
+        splitPane.setDividerLocation(splitPaneDividerLocation != null ? Integer.parseInt(splitPaneDividerLocation) : 250);
 
-        String splitPaneDividerLocation = Main.getInstance().getConfig().getProperty("main_window/split_pane_divider_location");
-        if (splitPaneDividerLocation != null) {
-            splitPane.setDividerLocation(Integer.parseInt(splitPaneDividerLocation));
-        } else {
-            splitPane.setDividerLocation(250);
-        }
+        JPanel contentPanel = new JPanel();
+        contentPanel.setPreferredSize(new Dimension(1000, 630));
+        contentPanel.setLayout(new BorderLayout());
+        contentPanel.add(toolBar.getGUI(), BorderLayout.NORTH);
+        contentPanel.add(splitPane, BorderLayout.CENTER);
 
         Main.getInstance().addShutdownEvent(100, new Runnable() {
 
             @Override
             public void run() {
-                Config config = Main.getInstance().getConfig();
-                config.setProperty("main_window/split_pane_divider_location", Integer.toString(splitPane.getDividerLocation()));
+                Config preference = Main.getInstance().getPreference();
+                preference.setProperty("main_window/split_pane_divider_location", Integer.toString(splitPane.getDividerLocation()));
             }
         });
         //</editor-fold>
 
+        //<editor-fold defaultstate="collapsed" desc="frame">
         window = new JFrame();
         window.setTitle("Language Files Tool");
         window.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/langfiles/logo.png")));
         window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         window.addWindowListener(new WindowAdapter() {
-
-            @Override
-            public void windowOpened(WindowEvent e) {
-                synchronized (delayedAddProjectList) {
-                    frameOpened = true;
-                    for (Project project : delayedAddProjectList) {
-                        addProject(project);
-                    }
-                    delayedAddProjectList.clear();
-                }
-            }
 
             @Override
             public void windowClosing(WindowEvent evt) {
@@ -245,11 +228,11 @@ public class MainWindow {
                     Dimension windowLastDimension = window.getSize();
                     Point windowPosOnScreen = window.getLocationOnScreen();
 
-                    Config config = Main.getInstance().getConfig();
-                    config.setProperty("window/last_width", Integer.toString(windowLastDimension.width));
-                    config.setProperty("window/last_height", Integer.toString(windowLastDimension.height));
-                    config.setProperty("window/last_pos_x", Integer.toString(windowPosOnScreen.x));
-                    config.setProperty("window/last_pos_y", Integer.toString(windowPosOnScreen.y));
+                    Config preference = Main.getInstance().getPreference();
+                    preference.setProperty("window/last_width", Integer.toString(windowLastDimension.width));
+                    preference.setProperty("window/last_height", Integer.toString(windowLastDimension.height));
+                    preference.setProperty("window/last_pos_x", Integer.toString(windowPosOnScreen.x));
+                    preference.setProperty("window/last_pos_y", Integer.toString(windowPosOnScreen.y));
                 }
             }
         });
@@ -258,16 +241,16 @@ public class MainWindow {
         window.setContentPane(contentPanel);
         window.pack();
 
-        Config config = Main.getInstance().getConfig();
+        Config preference = Main.getInstance().getPreference();
 
-        String windowLastWidthString = config.getProperty("window/last_width");
-        String windowLastHeightString = config.getProperty("window/last_height");
+        String windowLastWidthString = preference.getProperty("window/last_width");
+        String windowLastHeightString = preference.getProperty("window/last_height");
         if (windowLastHeightString != null && windowLastWidthString != null) {
             window.setSize(new Dimension(Integer.parseInt(windowLastWidthString), Integer.parseInt(windowLastHeightString)));
         }
 
-        String windowLastPosX = config.getProperty("window/last_pos_x");
-        String windowLastPosY = config.getProperty("window/last_pos_y");
+        String windowLastPosX = preference.getProperty("window/last_pos_x");
+        String windowLastPosY = preference.getProperty("window/last_pos_y");
         if (windowLastHeightString != null && windowLastWidthString != null) {
             window.setLocation(Integer.parseInt(windowLastPosX), Integer.parseInt(windowLastPosY));
         } else {
@@ -276,6 +259,22 @@ public class MainWindow {
         }
 
         window.setVisible(true);
+        //</editor-fold>
+
+        for (Project project : projectList) {
+            addProject(project);
+        }
+    }
+
+    public List<Project> addProjectEventListener(ProjectEventListener listener) {
+        synchronized (projectEventListenerList) {
+            projectEventListenerList.add(listener);
+            return getProjectList();
+        }
+    }
+
+    public boolean removeProjectEventListener(ProjectEventListener listener) {
+        return projectEventListenerList.remove(listener);
     }
 
     /**
@@ -331,42 +330,29 @@ public class MainWindow {
      * @param project the project
      */
     public void addProject(Project project) {
-        synchronized (delayedAddProjectList) {
-            if (!frameOpened) {
-                delayedAddProjectList.add(project);
-            } else {
-                projectList.add(project);
-                getProjectPanel().addProject(project);
-                getCodePanel().addProject(project);
+        synchronized (projectEventListenerList) {
+            projectList.add(project);
+            getProjectPanel().addProject(project);
+            getCodePanel().addProject(project);
+            for (ProjectEventListener listener : projectEventListenerList) {
+                listener.projectAdded(project);
             }
         }
+    }
+
+    public List<Project> getProjectList() {
+        List<Project> returnList = null;
+        synchronized (projectList) {
+            returnList = new ArrayList<Project>(projectList);
+        }
+        return returnList;
     }
 
     public DigestedFile getDigestedFileByAbsolutePath(String path) {
         for (Project project : projectList) {
-            List<DigestedFile> digestedFileList = project.getDigestedData();
-            for (DigestedFile digestedFile : digestedFileList) {
-                DigestedFile returnFile = null;
-                if ((returnFile = getDigestedFileByAbsolutePath(digestedFile, path)) != null) {
-                    return returnFile;
-                }
-            }
-        }
-        return null;
-    }
-
-    public DigestedFile getDigestedFileByAbsolutePath(DigestedFile digestedFile, String path) {
-        if (digestedFile.isDirectory()) {
-            List<DigestedFile> fileList = digestedFile.getFiles();
-            for (DigestedFile _digestedFile : fileList) {
-                DigestedFile returnFile = null;
-                if ((returnFile = getDigestedFileByAbsolutePath(_digestedFile, path)) != null) {
-                    return returnFile;
-                }
-            }
-        } else {
-            if (digestedFile.getFile().getAbsolutePath().equals(path)) {
-                return digestedFile;
+            DigestedFile returnFile = null;
+            if ((returnFile = project.getDigestedFileByAbsolutePath(path)) != null) {
+                return returnFile;
             }
         }
         return null;
