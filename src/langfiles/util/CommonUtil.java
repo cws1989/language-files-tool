@@ -112,11 +112,11 @@ public class CommonUtil {
      * @param file the file
      * @return the file parent path
      */
-    public static String getFileParentPath(File file) {
+    public static String getFileDirectory(File file) {
         if (file.isDirectory()) {
             return file.getAbsolutePath();
         } else {
-            return getFileParentPath(file.getAbsolutePath());
+            return getFileDirectory(file.getAbsolutePath());
         }
     }
 
@@ -125,7 +125,7 @@ public class CommonUtil {
      * @param filePath the file path
      * @return the file parent path
      */
-    public static String getFileParentPath(String filePath) {
+    public static String getFileDirectory(String filePath) {
         int pos = filePath.replace((CharSequence) "\\", (CharSequence) "/").lastIndexOf('/');
         if (pos != -1) {
             return filePath.substring(0, pos);

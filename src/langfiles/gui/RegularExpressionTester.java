@@ -1,5 +1,6 @@
 package langfiles.gui;
 
+import langfiles.gui.component.JTitledPanel;
 import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.Cursor;

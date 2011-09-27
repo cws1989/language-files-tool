@@ -1,5 +1,6 @@
 package langfiles.gui;
 
+import langfiles.gui.component.JTitledPanel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -20,11 +21,11 @@ import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.event.ChangeEvent;
 import langfiles.Main;
-import langfiles.project.DigestedFile;
 import langfiles.project.Project;
 import langfiles.project.ProjectEventListener;
 import langfiles.util.CommonUtil;
 import langfiles.util.Config;
+import langfiles.util.SyncFile;
 
 /**
  * The main window of the program.
@@ -348,10 +349,10 @@ public class MainWindow {
         return returnList;
     }
 
-    public DigestedFile getDigestedFileByAbsolutePath(String path) {
+    public SyncFile getSyncFileByAbsolutePath(String path) {
         for (Project project : projectList) {
-            DigestedFile returnFile = null;
-            if ((returnFile = project.getDigestedFileByAbsolutePath(path)) != null) {
+            SyncFile returnFile = null;
+            if ((returnFile = project.getSyncFileByAbsolutePath(path)) != null) {
                 return returnFile;
             }
         }

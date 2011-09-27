@@ -126,7 +126,7 @@ public class MenuBar {
 
         menu = new JMenu("Window");
         menu.setMnemonic(KeyEvent.VK_W);
-        menu.add(showIconTextMenuItem = makeCheckBoxMenuItem(null, "show_icon_text", "Show Icon Text", isWindowShowIconText));
+        menu.add(showIconTextMenuItem);
         menuBar.add(menu);
 
         setShowIconText(isWindowShowIconText);

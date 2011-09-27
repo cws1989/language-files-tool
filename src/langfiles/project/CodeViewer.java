@@ -1,6 +1,7 @@
 package langfiles.project;
 
-import javax.swing.JPanel;
+import javax.swing.JComponent;
+import langfiles.util.SyncFile;
 
 /**
  * Code Viewer interface.
@@ -12,7 +13,7 @@ public interface CodeViewer {
      * Set the code that this viewer should show.
      * @param digestedFile the digested file
      */
-    void setCode(DigestedFile digestedFile);
+    void setCode(SyncFile syncFile);
 
-    JPanel getGUI();
+    JComponent getGUI();
 }

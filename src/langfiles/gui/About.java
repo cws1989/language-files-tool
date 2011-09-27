@@ -1,5 +1,6 @@
 package langfiles.gui;
 
+import langfiles.gui.component.JWebLinkLabel;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.net.URISyntaxException;
@@ -35,7 +36,7 @@ public class About {
         JLabel titleLabel = new JLabel("Language Files Tool");
         titleLabel.setFont(CommonUtil.deriveFont(titleLabel.getFont(), true, 14));
 
-        JLabel versionLabel = new JLabel("v1.0");
+        JLabel versionLabel = new JLabel("0.9.0 beta");
         versionLabel.setBorder(BorderFactory.createEmptyBorder(titleLabel.getPreferredSize().height - versionLabel.getPreferredSize().height, 0, 0, 0));
 
         Box titleBox = Box.createHorizontalBox();

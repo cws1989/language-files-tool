@@ -59,7 +59,6 @@ public class ToolBar {
         //<editor-fold defaultstate="collapsed" desc="popup menu">
         showIconTextMenuItem = new JCheckBoxMenuItem("Show Icon Text");
         showIconTextMenuItem.setActionCommand("show_icon_text");
-        showIconTextMenuItem.setSelected(isWindowShowIconText);
         showIconTextMenuItem.addActionListener(new ActionListener() {
 
             @Override

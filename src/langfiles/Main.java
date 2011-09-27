@@ -9,6 +9,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -21,8 +22,6 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.event.ChangeEvent;
 import langfiles.gui.MainWindow;
 import langfiles.project.Project;
@@ -171,6 +170,16 @@ public class Main {
         });
         //</editor-fold>
 
+        //<editor-fold defaultstate="collapsed" desc="uncaught exception handle">
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
+
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, "Uncaught Exception", e);
+            }
+        });
+        //</editor-fold>
+
         // remove the closing MainWindow from  {@link #mainWindowList}
         mainWindowEventListener = new MainWindowEventListener() {
 
@@ -182,11 +191,11 @@ public class Main {
             @Override
             public void windowIsClosing(ChangeEvent event) {
                 if (!(event.getSource() instanceof MainWindow)) {
-                    Logger.getLogger(Main.class.getName()).log(Level.INFO, "Main:programIsClosing(): event.getSource() is not a MainWindow", event);
+                    Logger.getLogger(Main.class.getName()).log(Level.WARNING, "Main:programIsClosing(): event.getSource() is not a MainWindow", event);
                     return;
                 }
                 if (!mainWindowList.remove((MainWindow) event.getSource())) {
-                    Logger.getLogger(Main.class.getName()).log(Level.INFO, "Main:programIsClosing(): event.getSource() not exist in windows list", event);
+                    Logger.getLogger(Main.class.getName()).log(Level.WARNING, "Main:programIsClosing(): event.getSource() not exist in windows list", event);
                 }
             }
         };
@@ -208,13 +217,13 @@ public class Main {
      * @return the main object
      */
     public static Main getInstance() {
-//        if (main == null) {
-//            synchronized (Main.class) {
-//                if (main == null) {
-//                    main = new Main();
-//                }
-//            }
-//        }
+        if (main == null) {
+            synchronized (Main.class) {
+                if (main == null) {
+                    main = new Main();
+                }
+            }
+        }
         return main;
     }
 

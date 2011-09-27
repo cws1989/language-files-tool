@@ -32,11 +32,11 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import langfiles.Main;
-import langfiles.project.DigestedFile;
-import langfiles.project.DigestedFileListener;
 import langfiles.project.Project;
 import langfiles.util.Config;
 import langfiles.util.SortedArrayList;
+import langfiles.util.SyncFile;
+import langfiles.util.SyncFileListener;
 
 /**
  * The project panel.
@@ -177,7 +177,7 @@ public class ProjectPanel {
                     ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
 
                     if (projectTreeNode.getType() == ProjectTreeNode.Type.FILE) {
-                        ProjectPanel.this.mainWindow.getCodePanel().add((DigestedFile) projectTreeNode.getUserObject(), true);
+                        ProjectPanel.this.mainWindow.getCodePanel().add((SyncFile) projectTreeNode.getUserObject(), true);
                     }
                 }
             }
@@ -200,10 +200,10 @@ public class ProjectPanel {
                     if (userObject == null) {
                         return;
                     }
-                    if (userObject instanceof DigestedFile) {
-                        DigestedFile digestedFile = (DigestedFile) userObject;
-                        Project project = digestedFile.getProject();
-                        String filePath = digestedFile.getFile().getAbsolutePath();
+                    if (userObject instanceof SyncFile) {
+                        SyncFile syncFile = (SyncFile) userObject;
+                        Project project = (Project) syncFile.getInheritUserObject("project");
+                        String filePath = syncFile.getFile().getAbsolutePath();
 
                         synchronized (projectExpandCollapseRecordList) {
                             boolean recordExist = false;
@@ -237,13 +237,13 @@ public class ProjectPanel {
                     if (userObject == null) {
                         return;
                     }
-                    if (userObject instanceof DigestedFile) {
-                        DigestedFile digestedFile = (DigestedFile) userObject;
-                        if (digestedFile == null) {
+                    if (userObject instanceof SyncFile) {
+                        SyncFile syncFile = (SyncFile) userObject;
+                        if (syncFile == null) {
                             return;
                         }
-                        Project project = digestedFile.getProject();
-                        String filePath = digestedFile.getFile().getAbsolutePath();
+                        Project project = (Project) syncFile.getInheritUserObject("project");
+                        String filePath = syncFile.getFile().getAbsolutePath();
 
                         synchronized (projectExpandCollapseRecordList) {
                             List<String> projectExpandCollapseRecord = projectExpandCollapseRecordList.get(project);
@@ -283,8 +283,8 @@ public class ProjectPanel {
                 for (DefaultMutableTreeNode treeNode : expandedNodeList) {
                     ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
                     Object userObject = projectTreeNode.getUserObject();
-                    if (userObject instanceof DigestedFile) {
-                        expandedFilePathList.add(((DigestedFile) userObject).getFile().getAbsolutePath());
+                    if (userObject instanceof SyncFile) {
+                        expandedFilePathList.add(((SyncFile) userObject).getFile().getAbsolutePath());
                     }
                 }
 
@@ -366,9 +366,9 @@ public class ProjectPanel {
 
         List<TreePath> pathsToExpand = new ArrayList<TreePath>();
 
-        List<DigestedFile> files = project.getDigestedData();
-        for (DigestedFile digestedFile : files) {
-            addChildNodes(projectExpandCollapseRecord, pathsToExpand, sourceFilesNode, digestedFile);
+        List<SyncFile> files = project.getSyncFileList();
+        for (SyncFile syncFile : files) {
+            addChildNodes(projectExpandCollapseRecord, pathsToExpand, sourceFilesNode, syncFile);
         }
 
         // properties node
@@ -385,15 +385,15 @@ public class ProjectPanel {
     }
 
     /**
-     * Add digestedFile to parentNode and recurse on digestedFile and add sub-folders and files to relative node.
-     * @param parentNode the parent tree node to add digestedFile to
-     * @param digestedFile the file to add and recurse on
+     * Add syncFile to parentNode and recurse on syncFile and add sub-folders and files to relative node.
+     * @param parentNode the parent tree node to add syncFile to
+     * @param syncFile the file to add and recurse on
      */
-    public void addChildNodes(List<String> projectExpandCollapseRecord, List<TreePath> pathsToExpand, DefaultMutableTreeNode parentNode, DigestedFile digestedFile) {
-        DigestedFileListener listener = new DigestedFileListener() {
+    public void addChildNodes(List<String> projectExpandCollapseRecord, List<TreePath> pathsToExpand, DefaultMutableTreeNode parentNode, SyncFile syncFile) {
+        SyncFileListener listener = new SyncFileListener() {
 
             @Override
-            public void fileCreated(DigestedFile directory, DigestedFile fileCreated, String rootPath, String name) {
+            public void fileCreated(SyncFile directory, SyncFile fileCreated, String rootPath, String name) {
                 DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) directory.getUserObject("treeNode");
                 if (fileTreeNode == null) {
                     return;
@@ -406,7 +406,7 @@ public class ProjectPanel {
             }
 
             @Override
-            public void fileDeleted(DigestedFile fileDeleted, String rootPath, String name) {
+            public void fileDeleted(SyncFile fileDeleted, String rootPath, String name) {
                 DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) fileDeleted.getUserObject("treeNode");
                 if (fileTreeNode == null) {
                     return;
@@ -420,12 +420,12 @@ public class ProjectPanel {
             }
 
             @Override
-            public void fileModified(DigestedFile fileModified, String rootPath, String name) {
+            public void fileModified(SyncFile fileModified, String rootPath, String name) {
                 // do nothing
             }
 
             @Override
-            public void fileRenamed(DigestedFile fileRenamed, String rootPath, String oldName, String newName) {
+            public void fileRenamed(SyncFile fileRenamed, String rootPath, String oldName, String newName) {
                 DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) fileRenamed.getUserObject("treeNode");
                 if (fileTreeNode == null) {
                     return;
@@ -442,39 +442,51 @@ public class ProjectPanel {
                 treeModel.reload(fileTreeNode);
             }
         };
-        if (digestedFile.isDirectory()) {
+        if (syncFile.isDirectory()) {
             DefaultMutableTreeNode folderNode = null;
 
             int index = parentNode.getChildCount(), count = 0;
             Enumeration<?> enumeration = parentNode.children();
             while (enumeration.hasMoreElements()) {
                 DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) enumeration.nextElement();
+
                 ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
-                DigestedFile _digestedFile = (DigestedFile) projectTreeNode.getUserObject();
-                if (_digestedFile.getFile().getAbsolutePath().equals(digestedFile.getFile().getAbsolutePath())) {
+                SyncFile _syncFile = (SyncFile) projectTreeNode.getUserObject();
+
+                if (!_syncFile.isDirectory()) {
+                    index = count;
+                    break;
+                }
+                if (_syncFile.getFile().getAbsolutePath().equals(syncFile.getFile().getAbsolutePath())) {
                     folderNode = treeNode;
                 }
-                if (_digestedFile.isDirectory() && digestedFile.getFile().getName().compareTo(_digestedFile.getFile().getName()) < 0) {
-                    index = count;
+                int compareResult = syncFile.getFile().getName().compareTo(_syncFile.getFile().getName());
+                if (_syncFile.isDirectory() && compareResult < 0) {
+                    if (compareResult < 0) {
+                        index = count;
+                    } else {
+                        break;
+                    }
                 }
+
                 count++;
             }
 
             if (folderNode == null) {
-                ProjectTreeNode folderProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FOLDER, digestedFile.getFile().getName(), null);
-                folderProjectTreeNode.setUserObject(digestedFile);
+                ProjectTreeNode folderProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FOLDER, syncFile.getFile().getName(), null);
+                folderProjectTreeNode.setUserObject(syncFile);
 
                 folderNode = new DefaultMutableTreeNode(folderProjectTreeNode);
                 parentNode.insert(folderNode, index);
             }
 
-            List<DigestedFile> fileList = digestedFile.getFileList();
-            for (DigestedFile _file : fileList) {
+            List<SyncFile> fileList = syncFile.getChildSyncFileList();
+            for (SyncFile _file : fileList) {
                 addChildNodes(projectExpandCollapseRecord, pathsToExpand, folderNode, _file);
             }
 
             synchronized (projectExpandCollapseRecordList) {
-                String directoryPath = digestedFile.getFile().getAbsolutePath();
+                String directoryPath = syncFile.getFile().getAbsolutePath();
 
                 for (String _path : projectExpandCollapseRecord) {
                     if (directoryPath.equals(_path)) {
@@ -484,32 +496,42 @@ public class ProjectPanel {
                 }
             }
 
-            digestedFile.setUserObject("treeNode", folderNode);
-            digestedFile.addListener(listener);
+            syncFile.setUserObject("treeNode", folderNode);
+            syncFile.addListener(listener);
         } else {
             int index = parentNode.getChildCount(), count = 0;
             Enumeration<?> enumeration = parentNode.children();
             while (enumeration.hasMoreElements()) {
                 DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) enumeration.nextElement();
                 ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
-                DigestedFile _digestedFile = (DigestedFile) projectTreeNode.getUserObject();
-                if (_digestedFile.getFile().getAbsolutePath().equals(digestedFile.getFile().getAbsolutePath())) {
+                SyncFile _syncFile = (SyncFile) projectTreeNode.getUserObject();
+
+                if (_syncFile.isDirectory()) {
+                    continue;
+                }
+                if (_syncFile.getFile().getAbsolutePath().equals(syncFile.getFile().getAbsolutePath())) {
                     return;
                 }
-                if (!_digestedFile.isDirectory() && digestedFile.getFile().getName().compareTo(_digestedFile.getFile().getName()) < 0) {
-                    index = count;
+                int compareResult = syncFile.getFile().getName().compareTo(_syncFile.getFile().getName());
+                if (!_syncFile.isDirectory() && compareResult < 0) {
+                    if (compareResult < 0) {
+                        index = count;
+                    } else {
+                        break;
+                    }
                 }
+
                 count++;
             }
 
-            ProjectTreeNode fileProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FILE, digestedFile.getFile().getName(), null);
-            fileProjectTreeNode.setUserObject(digestedFile);
+            ProjectTreeNode fileProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FILE, syncFile.getFile().getName(), null);
+            fileProjectTreeNode.setUserObject(syncFile);
 
             DefaultMutableTreeNode fileTreeNode = new DefaultMutableTreeNode(fileProjectTreeNode);
             parentNode.insert(fileTreeNode, index);
 
-            digestedFile.setUserObject("treeNode", fileTreeNode);
-            digestedFile.addListener(listener);
+            syncFile.setUserObject("treeNode", fileTreeNode);
+            syncFile.addListener(listener);
         }
     }
 

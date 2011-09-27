@@ -1,6 +1,8 @@
 package langfiles.gui;
 
+import langfiles.gui.component.JTabComponent;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.KeyEvent;
@@ -16,9 +18,10 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import langfiles.Main;
 import langfiles.project.CodeViewer;
-import langfiles.project.DigestedFile;
 import langfiles.project.Project;
 import langfiles.util.Config;
+import langfiles.util.SyncFile;
+import langfiles.util.SyncFileListener;
 
 /**
  * The code panel.
@@ -87,13 +90,13 @@ public class CodePanel {
                         sb.append("\t");
                     }
                     CodePanelTab codePanelTab = (CodePanelTab) tabbedPane.getComponentAt(i);
-                    sb.append(codePanelTab.getDigestedFile().getFile().getAbsolutePath());
+                    sb.append(codePanelTab.getSyncFile().getFile().getAbsolutePath());
                 }
 
                 String selectedTab = "";
                 CodePanelTab codePanelTab = (CodePanelTab) tabbedPane.getSelectedComponent();
                 if (codePanelTab != null) {
-                    selectedTab = codePanelTab.getDigestedFile().getFile().getAbsolutePath();
+                    selectedTab = codePanelTab.getSyncFile().getFile().getAbsolutePath();
                 }
 
                 Config preference = main.getPreference();
@@ -130,14 +133,14 @@ public class CodePanel {
 
     /**
      * Add file to code panel.
-     * @param digestedFile the file to add to code panel
+     * @param syncFile the file to add to code panel
      */
-    public final void add(final DigestedFile digestedFile, final boolean getFocus) {
-        String filePath = digestedFile.getFile().getAbsolutePath();
+    public final void add(final SyncFile syncFile, final boolean getFocus) {
+        String filePath = syncFile.getFile().getAbsolutePath();
         boolean fileExistAlready = false;
         for (int i = 0, iEnd = tabbedPane.getTabCount(); i < iEnd; i++) {
             CodePanelTab codePanelTab = (CodePanelTab) tabbedPane.getComponentAt(i);
-            if (codePanelTab.getDigestedFile().getFile().getAbsolutePath().equals(filePath)) {
+            if (codePanelTab.getSyncFile().getFile().getAbsolutePath().equals(filePath)) {
                 tabbedPane.setSelectedIndex(i);
                 fileExistAlready = true;
                 break;
@@ -147,19 +150,60 @@ public class CodePanel {
             return;
         }
 
-        SwingCodeViewer codeViewer = new SwingCodeViewer();
-        codeViewer.setCode(digestedFile);
+        final CodeViewer codeViewer = new SyntaxHighlightedCodeViewer();
+        codeViewer.setCode(syncFile);
 
-        final CodePanelTab codePanelTab = new CodePanelTab(codeViewer, digestedFile);
+        SyncFileListener digestedFileListener = new SyncFileListener() {
+
+            @Override
+            public void fileCreated(SyncFile directory, SyncFile fileCreated, String rootPath, String name) {
+                // should not have this event
+            }
+
+            @Override
+            public void fileDeleted(SyncFile fileDeleted, String rootPath, String name) {
+                CodePanelTab codePanelTab = (CodePanelTab) fileDeleted.getUserObject("codePanelTab");
+                if (codePanelTab != null) {
+                    tabbedPane.remove(codePanelTab);
+                    codePanelTab.close();
+                }
+            }
+
+            @Override
+            public void fileModified(SyncFile fileModified, String rootPath, String name) {
+//                codeViewer.setCode(fileModified);
+            }
+
+            @Override
+            public void fileRenamed(SyncFile fileRenamed, String rootPath, String oldName, String newName) {
+                CodePanelTab codePanelTab = (CodePanelTab) fileRenamed.getUserObject("codePanelTab");
+                if (codePanelTab != null) {
+                    tabbedPane.setTitleAt(tabbedPane.indexOfComponent(codePanelTab), fileRenamed.getFile().getName());
+                }
+            }
+        };
+        syncFile.addListener(digestedFileListener);
+
+        final CodePanelTab codePanelTab = new CodePanelTab(codeViewer, syncFile, digestedFileListener);
+        syncFile.setUserObject("codePanelTab", codePanelTab);
 
         SwingUtilities.invokeLater(new Runnable() {
 
             @Override
             public void run() {
-                tabbedPane.addTab(digestedFile.getFile().getName(), codePanelTab);
-                tabbedPane.setTabComponentAt(tabbedPane.getTabCount() - 1, new JTabComponent(tabbedPane));
+                tabbedPane.addTab(syncFile.getFile().getName(), codePanelTab);
+                JTabComponent tabComponent = new JTabComponent(tabbedPane);
+                tabComponent.addTabComponentListener(new TabComponentListener() {
+
+                    @Override
+                    public void tabClosed(Component tab, JTabComponent tabComponent) {
+                        CodePanelTab codePanelTab = (CodePanelTab) tab;
+                        codePanelTab.close();
+                    }
+                });
+                tabbedPane.setTabComponentAt(tabbedPane.getTabCount() - 1, tabComponent);
                 if (getFocus
-                        | (lastSelectedTabFileAbsolutePath != null && lastSelectedTabFileAbsolutePath.equals(digestedFile.getFile().getAbsolutePath()))) {
+                        | (lastSelectedTabFileAbsolutePath != null && lastSelectedTabFileAbsolutePath.equals(syncFile.getFile().getAbsolutePath()))) {
                     tabbedPane.setSelectedComponent(codePanelTab);
                 }
             }
@@ -169,7 +213,7 @@ public class CodePanel {
     public final void setSelectedTabByFileAbsolutePath(String path) {
         for (int i = 0, iEnd = tabbedPane.getTabCount(); i < iEnd; i++) {
             CodePanelTab codePanelTab = (CodePanelTab) tabbedPane.getComponentAt(i);
-            if (codePanelTab.getDigestedFile().getFile().getAbsolutePath().equals(path)) {
+            if (codePanelTab.getSyncFile().getFile().getAbsolutePath().equals(path)) {
                 tabbedPane.setSelectedIndex(i);
                 break;
             }
@@ -189,6 +233,8 @@ public class CodePanel {
     public void closeSelectedTab() {
         int selectedTabIndex = tabbedPane.getSelectedIndex();
         if (selectedTabIndex != -1) {
+            CodePanelTab codePanelTab = (CodePanelTab) tabbedPane.getSelectedComponent();
+            codePanelTab.close();
             tabbedPane.removeTabAt(tabbedPane.getSelectedIndex());
         }
     }
@@ -199,9 +245,9 @@ public class CodePanel {
 //        t1 = System.currentTimeMillis();
         while (iterator.hasNext()) {
             String codePanelRecord = iterator.next();
-            DigestedFile digestedFile = mainWindow.getDigestedFileByAbsolutePath(codePanelRecord);
-            if (digestedFile != null) {
-                add(digestedFile, false);
+            SyncFile syncFile = mainWindow.getSyncFileByAbsolutePath(codePanelRecord);
+            if (syncFile != null && !syncFile.isDirectory()) {
+                add(syncFile, false);
                 iterator.remove();
             }
         }
@@ -213,21 +259,32 @@ public class CodePanel {
 
         private static final long serialVersionUID = 1L;
         private CodeViewer codeViewer;
-        private DigestedFile digestedFile;
+        private SyncFile syncFile;
+        private SyncFileListener digestedFileListener;
 
-        private CodePanelTab(CodeViewer codeViewer, DigestedFile digestedFile) {
+        private CodePanelTab(CodeViewer codeViewer, SyncFile syncFile, SyncFileListener syncFileListener) {
             this.codeViewer = codeViewer;
-            this.digestedFile = digestedFile;
+            this.syncFile = syncFile;
+            this.digestedFileListener = syncFileListener;
             setLayout(new BorderLayout());
             add(codeViewer.getGUI(), BorderLayout.CENTER);
+        }
+
+        public void close() {
+            // may invoke this when iterating digestedFile's listeners, cannot remove listener
+//            digestedFile.removeListener(digestedFileListener);
         }
 
         public CodeViewer getCodeViewer() {
             return codeViewer;
         }
 
-        public DigestedFile getDigestedFile() {
-            return digestedFile;
+        public SyncFile getSyncFile() {
+            return syncFile;
+        }
+
+        public SyncFileListener getSyncFileListener() {
+            return digestedFileListener;
         }
     }
 }

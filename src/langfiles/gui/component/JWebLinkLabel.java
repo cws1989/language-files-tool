@@ -1,4 +1,4 @@
-package langfiles.gui;
+package langfiles.gui.component;
 
 import java.awt.Cursor;
 import java.awt.Desktop;
