@@ -25,28 +25,47 @@ import net.contentobjects.jnotify.JNotifyException;
 public class SyncFile implements Comparable<Object> {
 
     protected static final String fileSeperator = System.getProperty("file.separator");
+    /**
+     * The parent SyncFile of this SyncFile.
+     */
     private SyncFile parent;
-    //
+    /**
+     * Information about the {@link java.io.File} of this SyncFile.
+     */
     protected File file;
     protected boolean fileIsDirectory;
     protected String fileAbsolutePath;
     protected String fileName;
     protected long fileLastModified;
-    //
+    /**
+     * The watch id of this file. If this is a file instead a directory, it will listen to the directory that contain the file.
+     */
     protected int watchId;
     //
     protected List<File> childFileList;
     protected List<SyncFile> childSyncFileList;
     protected Map<String, SyncFile> childSyncFileMap;
-    //
+    /**
+     * Conditions that determine whether the child file has a SyncFile or not.
+     */
     protected List<String> allowedFileExtensionList;
     protected List<String> disallowedFileExtensionList;
     protected List<String> ignoreFileList;
-    //
+    /**
+     * User defined objects.
+     */
     protected final Map<String, Object> userObjectList;
+    /**
+     * User defined objects. This will be inherited when creating child.
+     */
     protected final Map<String, Object> inheritUserObjectList;
+    /**
+     * SyncFileListener list.
+     */
     protected final List<SyncFileListener> listenerList;
-    //
+    /**
+     * Mutex lock.
+     */
     protected final Object syncFileLock = new Object();
     //
     private boolean debugMode = false;
@@ -55,7 +74,7 @@ public class SyncFile implements Comparable<Object> {
         this(parent, file, new ArrayList<String>(), new ArrayList<String>(), new ArrayList<String>(), true);
     }
 
-    protected SyncFile(SyncFile parent, File file, List<String> allowedFileExtensionList, List<String> disallowedFileExtensionList, List<String> ignoreFileList, boolean updateChild) throws IOException {
+    protected SyncFile(SyncFile parent, File file, List<String> allowedFileExtensionList, List<String> disallowedFileExtensionList, List<String> ignoreFileList, boolean checkAndCreateChildren) throws IOException {
         this.parent = parent;
 
         watchId = -1;
@@ -72,73 +91,77 @@ public class SyncFile implements Comparable<Object> {
         inheritUserObjectList = Collections.synchronizedMap(new HashMap<String, Object>());
         listenerList = Collections.synchronizedList(new ArrayList<SyncFileListener>());
 
-        setFile(file, updateChild);
+        setFile(file);
+        if (checkAndCreateChildren) {
+            updateChildFileList();
+            updateChildSyncFileList(true);
+        }
     }
 
-    protected void setFile(File file, boolean updateChild) throws IOException {
-        try {
-            if (!file.exists()) {
-                throw new Exception();
+    protected void setFile(File file) throws IOException {
+        if (!file.exists()) {
+            throw new IOException();
+        }
+        synchronized (syncFileLock) {
+            this.file = file;
+            fileIsDirectory = file.isDirectory();
+            fileAbsolutePath = file.getAbsolutePath();
+            fileName = file.getName();
+            fileLastModified = file.lastModified();
+        }
+    }
+
+    protected void updateChildFileList() {
+        if (!isDirectory()) {
+            return;
+        }
+        synchronized (syncFileLock) {
+            childFileList.clear();
+
+            File[] _files = file.listFiles();
+            if (_files != null) {
+                childFileList.addAll(Arrays.asList(_files));
             }
-            synchronized (syncFileLock) {
-                this.file = file;
-                fileIsDirectory = file.isDirectory();
-                fileAbsolutePath = file.getAbsolutePath();
-                fileName = file.getName();
-                fileLastModified = file.lastModified();
-
-                if (updateChild && isDirectory()) {
-                    childFileList.clear();
-
-                    File[] _files = file.listFiles();
-                    if (_files != null) {
-                        childFileList.addAll(Arrays.asList(file.listFiles()));
-                    }
-
-                    validateChildSyncFileList();
-                }
-            }
-        } catch (Exception ex) {
-            throw new IOException("Fail to get data from '" + fileAbsolutePath + "'");
         }
     }
 
     /**
      * childFileList is assumed to be updated
      */
-    protected void validateChildSyncFileList() {
+    protected void updateChildSyncFileList(boolean updateChild) {
         if (!isDirectory()) {
             return;
         }
         synchronized (syncFileLock) {
             List<File> _childFileList = new ArrayList<File>(childFileList);
-            List<SyncFile> _childSyncFileList = new ArrayList<SyncFile>(childSyncFileList);
+            SyncFile[] _childSyncFileList = childSyncFileList.toArray(new SyncFile[childSyncFileList.size()]);
 
-            // validate existing child SyncFile list and remove its related File from _childFileList
             for (SyncFile _childSyncFile : _childSyncFileList) {
-                boolean syncFileContainedInChildFileList = false;
+                // remove _childSyncFile's File from _childFileList
+                boolean syncFileExistInChildFileList = false;
                 Iterator<File> iterator2 = _childFileList.iterator();
                 while (iterator2.hasNext()) {
                     File _file = iterator2.next();
-                    if (_file.getAbsolutePath().equals(_childSyncFile.getFile().getAbsolutePath())) {
-                        syncFileContainedInChildFileList = true;
+                    if (_file.getAbsolutePath().equals(_childSyncFile.getAbsolutePath())) {
+                        syncFileExistInChildFileList = true;
                         iterator2.remove();
                         break;
                     }
                 }
 
-                if (!syncFileContainedInChildFileList || !isFileFufilFilter(_childSyncFile.getFile())) {
-                    // SyncFile is no long exist or not fufil filter
-                    _childSyncFile.fireDeleteEvent(_childSyncFile.getAbsolutePath(), "");
+                if (!syncFileExistInChildFileList || !isFileFufilFilter(_childSyncFile.getFile())) {
+                    // SyncFile not exist in _childFileList or not fufil filter
+                    _childSyncFile.fireDeleteEvent(_childSyncFile.getAbsolutePath(), "", true, true);
                 } else {
-                    // exist, if it is a directory, validate its child SyncFile list
-                    if (_childSyncFile.isDirectory()) {
-                        _childSyncFile.validateChildSyncFileList();
+                    // SyncFile exist in _childFileList
+                    // if it is a directory, validate its child SyncFile list
+                    if (_childSyncFile.isDirectory() && updateChild) {
+                        _childSyncFile.updateChildSyncFileList(updateChild);
                     }
                 }
             }
 
-            // check the remaining _childFileList
+            // check the remaining File in _childFileList that do not have a SyncFile coresponding to it yet
             for (File _file : _childFileList) {
                 if (_file.isHidden()) {
                     continue;
@@ -152,9 +175,85 @@ public class SyncFile implements Comparable<Object> {
     }
 
     /**
+     * Rename a file that do not have a SyncFile relate to it.
+     * update childFileList
+     */
+    protected void renameFile(File oldFile, File newFile) {
+        synchronized (syncFileLock) {
+            String oldFileAbsolutePath = oldFile.getAbsolutePath();
+
+            ListIterator<File> iterator = childFileList.listIterator();
+            while (iterator.hasNext()) {
+                File _file = iterator.next();
+                if (_file.getAbsolutePath().equals(oldFileAbsolutePath)) {
+                    iterator.set(newFile);
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Rename a file that have a SyncFile related to it.
+     * update childFileList, childSyncFileList, childSyncFileMap
+     */
+    protected void renameFile(File oldFile, File newFile, SyncFile child) {
+        synchronized (syncFileLock) {
+            String oldFileAbsPath = oldFile.getAbsolutePath();
+
+            ListIterator<File> iterator = childFileList.listIterator();
+            while (iterator.hasNext()) {
+                File _file = iterator.next();
+                if (_file.getAbsolutePath().equals(oldFileAbsPath)) {
+                    iterator.set(newFile);
+                    break;
+                }
+            }
+
+            childSyncFileMap.remove(oldFile.getName());
+            childSyncFileMap.put(newFile.getName(), child);
+        }
+    }
+
+    /**
+     * update childFileList, childSyncFileList, childSyncFileMap
+     */
+    protected void removeFile(final SyncFile child, boolean deleteSyncFileOnly) {
+        synchronized (syncFileLock) {
+            if (!deleteSyncFileOnly) {
+                Iterator<File> iterator = childFileList.iterator();
+                while (iterator.hasNext()) {
+                    File _file = iterator.next();
+                    if (_file.getAbsolutePath().equals(child.getAbsolutePath())) {
+                        iterator.remove();
+                        break;
+                    }
+                }
+            }
+            childSyncFileList.remove(child);
+            childSyncFileMap.remove(child.getFileName());
+        }
+    }
+
+    public void refresh() {
+        if (!isDirectory()) {
+            return;
+        }
+        synchronized (syncFileLock) {
+            updateChildFileList();
+            updateChildSyncFileList(false);
+
+            SyncFile[] _childSyncFileList = childSyncFileList.toArray(new SyncFile[childSyncFileList.size()]);
+            for (SyncFile _syncFile : _childSyncFileList) {
+                _syncFile.refresh();
+            }
+        }
+    }
+
+    /**
      * @param path should remove the first part and the first file separator
      */
-    protected SyncFile findSyncFile(String path) {
+    public SyncFile findSyncFile(String path) {
         if (path.isEmpty()) {
             return this;
         }
@@ -163,6 +262,9 @@ public class SyncFile implements Comparable<Object> {
         String _fileName = pos != -1 ? path.substring(0, pos) : path;
 
         SyncFile target = childSyncFileMap.get(_fileName);
+        if (target == null) {
+            return null;
+        }
 
         return pos == -1 ? target : target.findSyncFile(path.substring(pos + 1));
     }
@@ -201,16 +303,19 @@ public class SyncFile implements Comparable<Object> {
                         if (!replacePath.isEmpty()) {
                             replacePath = replacePath.substring(1);
                         }
-                        SyncFile newSyncFileParent = findSyncFile(replacePath);
-                        if (newSyncFileParent == null) {
+
+                        SyncFile parentOfnewSyncFile = findSyncFile(replacePath);
+                        if (parentOfnewSyncFile == null) {
                             return;
                         }
-                        newSyncFileParent.childFileList.add(file);
-                        newSyncFileParent.fireCreateEvent(rootPath, name, false);
-
-                        if (debugMode) {
-                            System.out.println(SyncFile.this);
+                        parentOfnewSyncFile.childFileList.add(file);
+                        if (!file.isHidden()) {
+                            parentOfnewSyncFile.fireCreateEvent(rootPath, name, false);
                         }
+                    }
+
+                    if (debugMode) {
+                        System.out.println(SyncFile.this);
                     }
                 }
 
@@ -220,17 +325,18 @@ public class SyncFile implements Comparable<Object> {
                         System.out.println("d: " + rootPath + "/" + name);
                     }
 
+                    File file = new File(rootPath + "/" + name);
+
                     synchronized (syncFileLock) {
-                        File file = new File(rootPath + "/" + name);
                         SyncFile fileDeleted = findSyncFile(file.getAbsolutePath().replace(getAbsolutePath(), "").substring(1));
                         if (fileDeleted == null) {
                             return;
                         }
-                        fileDeleted.fireDeleteEvent(rootPath, name);
+                        fileDeleted.fireDeleteEvent(rootPath, name, true, false);
+                    }
 
-                        if (debugMode) {
-                            System.out.println(SyncFile.this);
-                        }
+                    if (debugMode) {
+                        System.out.println(SyncFile.this);
                     }
                 }
 
@@ -252,10 +358,10 @@ public class SyncFile implements Comparable<Object> {
                             return;
                         }
                         fileModified.fireModifyEvent(rootPath, name);
+                    }
 
-                        if (debugMode) {
-                            System.out.println(SyncFile.this);
-                        }
+                    if (debugMode) {
+                        System.out.println(SyncFile.this);
                     }
                 }
 
@@ -273,15 +379,24 @@ public class SyncFile implements Comparable<Object> {
                     }
 
                     synchronized (syncFileLock) {
-                        SyncFile fileRenamed = findSyncFile(oldFile.getAbsolutePath().replace(getAbsolutePath(), "").substring(1));
-                        if (fileRenamed == null) {
-                            return;
-                        }
-                        fileRenamed.fireRenameEvent(rootPath, oldName, newName);
+                        String oldFileRelativePath = oldFile.getAbsolutePath().replace(getAbsolutePath(), "").substring(1);
 
-                        if (debugMode) {
-                            System.out.println(SyncFile.this);
+                        SyncFile fileRenamed = findSyncFile(oldFileRelativePath);
+                        if (fileRenamed != null) {
+                            fileRenamed.fireRenameEvent(rootPath, oldName, newName);
                         }
+
+                        int pos = oldFileRelativePath.lastIndexOf(fileSeperator);
+                        String parentPath = pos != -1 ? oldFileRelativePath.substring(0, pos) : "";
+                        SyncFile fileRenamedParent = findSyncFile(parentPath);
+                        if (fileRenamedParent != null) {
+                            fileRenamedParent.renameFile(oldFile, newFile);
+                            fileRenamedParent.updateChildSyncFileList(false);
+                        }
+                    }
+
+                    if (debugMode) {
+                        System.out.println(SyncFile.this);
                     }
                 }
             });
@@ -329,7 +444,7 @@ public class SyncFile implements Comparable<Object> {
             this.allowedFileExtensionList.clear();
             this.allowedFileExtensionList.addAll(allowedFileExtensionList);
             if (validate) {
-                validateChildSyncFileList();
+                updateChildSyncFileList(true);
             }
         }
     }
@@ -339,7 +454,7 @@ public class SyncFile implements Comparable<Object> {
             this.disallowedFileExtensionList.clear();
             this.disallowedFileExtensionList.addAll(disallowedFileExtensionList);
             if (validate) {
-                validateChildSyncFileList();
+                updateChildSyncFileList(true);
             }
         }
     }
@@ -349,7 +464,7 @@ public class SyncFile implements Comparable<Object> {
             this.ignoreFileList.clear();
             this.ignoreFileList.addAll(ignoreFileList);
             if (validate) {
-                validateChildSyncFileList();
+                updateChildSyncFileList(true);
             }
         }
     }
@@ -465,44 +580,11 @@ public class SyncFile implements Comparable<Object> {
         userObjectList.remove(key);
     }
 
-    protected void renameChild(SyncFile child, File oldFile, File newFile) {
-        synchronized (syncFileLock) {
-            String oldFileAbsPath = oldFile.getAbsolutePath();
-
-            ListIterator<File> iterator = childFileList.listIterator();
-            while (iterator.hasNext()) {
-                File _file = iterator.next();
-                if (_file.getAbsolutePath().equals(oldFileAbsPath)) {
-                    iterator.set(newFile);
-                    break;
-                }
-            }
-
-            childSyncFileMap.remove(oldFile.getName());
-            childSyncFileMap.put(newFile.getName(), child);
-        }
-    }
-
-    protected void removeChild(SyncFile child) {
-        synchronized (syncFileLock) {
-            Iterator<File> iterator = childFileList.iterator();
-            while (iterator.hasNext()) {
-                File _file = iterator.next();
-                if (_file.getAbsolutePath().equals(child.getAbsolutePath())) {
-                    iterator.remove();
-                    break;
-                }
-            }
-            childSyncFileList.remove(child);
-            childSyncFileMap.remove(child.getFileName());
-        }
-    }
-
     /**
      * Fire file created event.
      * @return the SyncFile of the new file
      */
-    protected synchronized SyncFile fireCreateEvent(String rootPath, String name, boolean updateChild) {
+    protected SyncFile fireCreateEvent(String rootPath, String name, boolean checkAndCreateChildren) {
         if (debugMode) {
             System.out.println("fc: " + rootPath + (name.isEmpty() ? "" : "/") + name);
         }
@@ -518,12 +600,11 @@ public class SyncFile implements Comparable<Object> {
             return null;
         }
 
+        SyncFile newSyncFile = null;
         synchronized (syncFileLock) {
-            SyncFile newSyncFile = null;
-
             if (isFileFufilFilter(newFile)) {
                 try {
-                    newSyncFile = new SyncFile(this, newFile, allowedFileExtensionList, disallowedFileExtensionList, ignoreFileList, updateChild);
+                    newSyncFile = new SyncFile(this, newFile, allowedFileExtensionList, disallowedFileExtensionList, ignoreFileList, checkAndCreateChildren);
                     synchronized (inheritUserObjectList) {
                         for (String _key : inheritUserObjectList.keySet()) {
                             Object _object = inheritUserObjectList.get(_key);
@@ -543,35 +624,35 @@ public class SyncFile implements Comparable<Object> {
                     Logger.getLogger(SyncFile.class.getName()).log(Level.INFO, null, ex);
                 }
             }
-
-            return newSyncFile;
         }
+
+        return newSyncFile;
     }
 
     /**
      * Fire file deleted event.
      */
-    protected void fireDeleteEvent(String rootPath, String name) {
+    protected void fireDeleteEvent(String rootPath, String name, boolean deleteFromParent, boolean deleteSyncFileOnly) {
         if (debugMode) {
             System.out.println("fd: " + rootPath + (name.isEmpty() ? "" : "/") + name);
         }
 
-        synchronized (syncFileLock) {
+        if (deleteFromParent) {
             SyncFile _parent = getParent();
             if (_parent != null) {
-                _parent.removeChild(this);
+                _parent.removeFile(this, deleteSyncFileOnly);
             }
+        }
 
-            if (isDirectory()) {
-                for (SyncFile _syncFile : childSyncFileList) {
-                    _syncFile.fireDeleteEvent(rootPath, name);
-                }
+        if (isDirectory()) {
+            for (SyncFile _syncFile : childSyncFileList) {
+                _syncFile.fireDeleteEvent(rootPath, name, false, false);
             }
+        }
 
-            synchronized (listenerList) {
-                for (SyncFileListener listener : listenerList) {
-                    listener.fileDeleted(this, rootPath, name);
-                }
+        synchronized (listenerList) {
+            for (SyncFileListener listener : listenerList) {
+                listener.fileDeleted(this, rootPath, name);
             }
         }
     }
@@ -612,14 +693,14 @@ public class SyncFile implements Comparable<Object> {
 
         synchronized (syncFileLock) {
             try {
-                setFile(newFile, false);
+                setFile(newFile);
+                if (getParent() != null) {
+                    getParent().renameFile(oldFile, newFile, this);
+                }
                 synchronized (listenerList) {
                     for (SyncFileListener listener : listenerList) {
                         listener.fileRenamed(this, rootPath, oldName, newName);
                     }
-                }
-                if (getParent() != null) {
-                    getParent().renameChild(this, oldFile, newFile);
                 }
             } catch (IOException ex) {
                 Logger.getLogger(SyncFile.class.getName()).log(Level.SEVERE, null, ex);

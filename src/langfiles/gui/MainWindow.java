@@ -22,10 +22,9 @@ import javax.swing.JSplitPane;
 import javax.swing.event.ChangeEvent;
 import langfiles.Main;
 import langfiles.project.Project;
-import langfiles.project.ProjectEventListener;
+import langfiles.project.ProjectListener;
 import langfiles.util.CommonUtil;
 import langfiles.util.Config;
-import langfiles.util.SyncFile;
 
 /**
  * The main window of the program.
@@ -65,10 +64,7 @@ public class MainWindow {
      * The project list.
      */
     private final List<Project> projectList;
-    /**
-     * 
-     */
-    private final List<ProjectEventListener> projectEventListenerList;
+    private final List<ProjectListener> projectEventListenerList;
 
     /**
      * Constructor.
@@ -76,7 +72,7 @@ public class MainWindow {
     public MainWindow(List<Project> projectList) {
         mainWindowEventListenerList = Collections.synchronizedList(new ArrayList<MainWindowEventListener>());
         this.projectList = Collections.synchronizedList(new ArrayList<Project>(projectList));
-        projectEventListenerList = Collections.synchronizedList(new ArrayList<ProjectEventListener>());
+        projectEventListenerList = Collections.synchronizedList(new ArrayList<ProjectListener>());
 
         // should be initialized before initialize menu bar, content panel, ...
         actionListener = new ActionListener() {
@@ -267,14 +263,16 @@ public class MainWindow {
         }
     }
 
-    public List<Project> addProjectEventListener(ProjectEventListener listener) {
-        synchronized (projectEventListenerList) {
-            projectEventListenerList.add(listener);
-            return getProjectList();
+    public List<Project> addProjectEventListener(ProjectListener listener) {
+        synchronized (projectList) {
+            synchronized (projectEventListenerList) {
+                projectEventListenerList.add(listener);
+                return getProjectList();
+            }
         }
     }
 
-    public boolean removeProjectEventListener(ProjectEventListener listener) {
+    public boolean removeProjectEventListener(ProjectListener listener) {
         return projectEventListenerList.remove(listener);
     }
 
@@ -332,11 +330,22 @@ public class MainWindow {
      */
     public void addProject(Project project) {
         synchronized (projectEventListenerList) {
-            projectList.add(project);
-            getProjectPanel().addProject(project);
-            getCodePanel().addProject(project);
-            for (ProjectEventListener listener : projectEventListenerList) {
-                listener.projectAdded(project);
+            synchronized (projectList) {
+                projectList.add(project);
+                for (ProjectListener listener : projectEventListenerList) {
+                    listener.projectAdded(project);
+                }
+            }
+        }
+    }
+
+    public void removeProject(Project project) {
+        synchronized (projectEventListenerList) {
+            synchronized (projectList) {
+                projectList.remove(project);
+                for (ProjectListener listener : projectEventListenerList) {
+                    listener.projectRemoved(project);
+                }
             }
         }
     }
@@ -349,16 +358,17 @@ public class MainWindow {
         return returnList;
     }
 
-    public SyncFile getSyncFileByAbsolutePath(String path) {
-        for (Project project : projectList) {
-            SyncFile returnFile = null;
-            if ((returnFile = project.getSyncFileByAbsolutePath(path)) != null) {
-                return returnFile;
-            }
-        }
-        return null;
-    }
-
+//    public SyncFile getSyncFileByAbsolutePath(String path) {
+//        synchronized (projectList) {
+//            for (Project project : projectList) {
+//                SyncFile returnFile = null;
+//                if ((returnFile = project.getSyncFileByAbsolutePath(path)) != null) {
+//                    return returnFile;
+//                }
+//            }
+//            return null;
+//        }
+//    }
     /**
      * Add program event listener.
      * @param listener the program event listener

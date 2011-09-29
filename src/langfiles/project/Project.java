@@ -4,13 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import langfiles.util.CommonUtil;
 import langfiles.util.SortedArrayList;
 import langfiles.util.SyncFile;
 
@@ -37,15 +34,10 @@ public class Project implements Comparable<Object> {
      */
     private final List<String> ignoreFileList;
     /**
-     * The list of digested data/files. It is a sorted ArrayList.
+     * The list of syncFiles. It is a sorted ArrayList.
      */
     private final List<SyncFile> syncFileList;
-    private final Map<SyncFile, Map<String, SyncFile>> digestedDataFileList;
-    /**
-     * Exclusive use for {@link #revalidateFiles()}.
-     */
-    private boolean revalidatingFiles;
-    private final Object revalidateFilesLock = new Object();
+    private final List<ProjectFileListener> projectFileListenerList;
 
     /**
      * Constructor.
@@ -56,8 +48,7 @@ public class Project implements Comparable<Object> {
         disallowedExtensionList = Collections.synchronizedList(new ArrayList<String>());
         ignoreFileList = Collections.synchronizedList(new ArrayList<String>());
         syncFileList = Collections.synchronizedList(new SortedArrayList<SyncFile>());
-        digestedDataFileList = Collections.synchronizedMap(new HashMap<SyncFile, Map<String, SyncFile>>());
-        revalidatingFiles = false;
+        projectFileListenerList = Collections.synchronizedList(new ArrayList<ProjectFileListener>());
     }
 
     /**
@@ -66,6 +57,19 @@ public class Project implements Comparable<Object> {
      */
     public String getName() {
         return projectName;
+    }
+
+    public List<SyncFile> addFileListener(ProjectFileListener listener) {
+        synchronized (syncFileList) {
+            synchronized (projectFileListenerList) {
+                projectFileListenerList.add(listener);
+                return getSyncFileList();
+            }
+        }
+    }
+
+    public void removeFileListener(ProjectFileListener listener) {
+        projectFileListenerList.remove(listener);
     }
 
     /**
@@ -85,22 +89,22 @@ public class Project implements Comparable<Object> {
      * @param extensionList the allowed file extension list
      */
     public void setAllowedExtensions(List<String> extensionList) {
-        synchronized (allowedExtensionList) {
-            // remove the '.' at the beginning of the extension
-            ListIterator<String> iterator = extensionList.listIterator();
-            while (iterator.hasNext()) {
-                String extension = iterator.next();
-                if (extension.charAt(0) == '.') {
-                    iterator.set(extension.substring(1));
+        synchronized (syncFileList) {
+            synchronized (allowedExtensionList) {
+                // remove the '.' at the beginning of the extension
+                ListIterator<String> iterator = extensionList.listIterator();
+                while (iterator.hasNext()) {
+                    String extension = iterator.next();
+                    if (extension.charAt(0) == '.') {
+                        iterator.set(extension.substring(1));
+                    }
                 }
+
+                allowedExtensionList.clear();
+                allowedExtensionList.addAll(extensionList);
             }
 
-            allowedExtensionList.clear();
-            allowedExtensionList.addAll(extensionList);
-        }
-
-        // remove files with extension not within the allowed extension list and add back those within the allowed extension list
-        synchronized (syncFileList) {
+            // remove files with extension not within the allowed extension list and add back those within the allowed extension list
             for (SyncFile syncFile : syncFileList) {
                 syncFile.setAllowedFileExtensionList(extensionList, true);
             }
@@ -124,46 +128,25 @@ public class Project implements Comparable<Object> {
      * @param extensionList the disallowed file extension list
      */
     public void setDisallowedExtensions(List<String> extensionList) {
-        synchronized (disallowedExtensionList) {
-            // remove the '.' at the beginning of the extension
-            ListIterator<String> iterator = extensionList.listIterator();
-            while (iterator.hasNext()) {
-                String extension = iterator.next();
-                if (extension.charAt(0) == '.') {
-                    iterator.set(extension.substring(1));
+        synchronized (syncFileList) {
+            synchronized (disallowedExtensionList) {
+                // remove the '.' at the beginning of the extension
+                ListIterator<String> iterator = extensionList.listIterator();
+                while (iterator.hasNext()) {
+                    String extension = iterator.next();
+                    if (extension.charAt(0) == '.') {
+                        iterator.set(extension.substring(1));
+                    }
                 }
+
+                disallowedExtensionList.clear();
+                disallowedExtensionList.addAll(extensionList);
             }
 
-            disallowedExtensionList.clear();
-            disallowedExtensionList.addAll(extensionList);
-        }
-
-        // remove files with extension within the allowed extension list and add back those not within the allowed extension list
-        synchronized (syncFileList) {
             for (SyncFile syncFile : syncFileList) {
                 syncFile.setDisallowedFileExtensionList(extensionList, true);
             }
         }
-    }
-
-    /**
-     * Add file to ignore file list.
-     * @param file the file to ignore
-     */
-    public void addIgnoreFile(File file) {
-        synchronized (ignoreFileList) {
-            if (ignoreFileList.indexOf(file.getAbsolutePath()) == -1) {
-                ignoreFileList.add(file.getAbsolutePath());
-            }
-        }
-    }
-
-    /**
-     * Remove the file from the ignore file list.
-     * @param file the file to remove from ignore file list
-     */
-    public void removeIgnoreFile(File file) {
-        ignoreFileList.remove(file.getAbsolutePath());
     }
 
     /**
@@ -179,8 +162,44 @@ public class Project implements Comparable<Object> {
     }
 
     /**
-     * Get the list of digested data/files.
-     * @return the list of digested data/files
+     * Add file to ignore file list.
+     * @param file the file to ignore
+     */
+    public void addIgnoreFile(List<File> files) {
+        synchronized (syncFileList) {
+            synchronized (ignoreFileList) {
+                for (File file : files) {
+                    if (ignoreFileList.indexOf(file.getAbsolutePath()) == -1) {
+                        ignoreFileList.add(file.getAbsolutePath());
+                    }
+                }
+            }
+
+            for (SyncFile syncFile : syncFileList) {
+                syncFile.setIgnoreFileList(ignoreFileList, true);
+            }
+        }
+    }
+
+    /**
+     * Remove the file from the ignore file list.
+     * @param file the file to remove from ignore file list
+     */
+    public void removeIgnoreFile(File file) {
+        synchronized (syncFileList) {
+            boolean itemExistBeforeRemove = ignoreFileList.remove(file.getAbsolutePath());
+
+            if (itemExistBeforeRemove) {
+                for (SyncFile syncFile : syncFileList) {
+                    syncFile.setIgnoreFileList(ignoreFileList, true);
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the list of SyncFiles.
+     * @return the list of SyncFiles
      */
     public List<SyncFile> getSyncFileList() {
         List<SyncFile> returnList = new ArrayList<SyncFile>();
@@ -193,90 +212,71 @@ public class Project implements Comparable<Object> {
     /**
      * Add file/folder and all files inside recursively to the project.
      * @param file the file/folder
+     * @return 
      */
-    public void add(File file) {
+    public boolean add(File file) {
         synchronized (syncFileList) {
             // compare to existing file list (root level only) to check duplication
-            boolean existAlready = false;
             for (SyncFile syncFile : syncFileList) {
-                if (syncFile.getFile().getAbsolutePath().equals(file.getAbsolutePath())) {
-                    existAlready = true;
-                    break;
+                if (syncFile.getAbsolutePath().equals(file.getAbsolutePath())) {
+                    return false;
                 }
             }
-            if (existAlready) {
-                return;
-            }
 
+            SyncFile syncFile = null;
             try {
-                SyncFile syncFile = new SyncFile(null, file);
+                syncFile = new SyncFile(null, file);
                 syncFile.setInheritUserObject("project", this);
                 syncFile.addWatch();
                 syncFile.setAllowedFileExtensionList(allowedExtensionList, false);
                 syncFile.setDisallowedFileExtensionList(disallowedExtensionList, false);
                 syncFile.setIgnoreFileList(ignoreFileList, true);
-                syncFileList.add(syncFile);
-                digestedDataFileList.put(syncFile, getFileList(syncFile));
             } catch (IOException ex) {
                 Logger.getLogger(Project.class.getName()).log(Level.SEVERE, null, ex);
+                return false;
             }
+            // syncFile should not be null here
+
+            syncFileList.add(syncFile);
+
+            synchronized (projectFileListenerList) {
+                for (ProjectFileListener listener : projectFileListenerList) {
+                    listener.projectFileAdded(syncFile);
+                }
+            }
+
+            return true;
         }
     }
 
     public void remove(SyncFile syncFile) {
         synchronized (syncFileList) {
             syncFileList.remove(syncFile);
-            digestedDataFileList.remove(syncFile);
-        }
-    }
-
-    protected Map<String, SyncFile> getFileList(SyncFile syncFile) {
-        Map<String, SyncFile> returnMap = new HashMap<String, SyncFile>();
-
-        if (syncFile.isDirectory()) {
-            returnMap.put(syncFile.getFile().getAbsolutePath(), syncFile);
-            List<SyncFile> _fileList = syncFile.getChildSyncFileList();
-            for (SyncFile _syncFile : _fileList) {
-                returnMap.putAll(getFileList(_syncFile));
+            synchronized (projectFileListenerList) {
+                for (ProjectFileListener listener : projectFileListenerList) {
+                    listener.projectFileRemoved(syncFile);
+                }
             }
-        } else {
-            returnMap.put(syncFile.getFile().getAbsolutePath(), syncFile);
         }
-
-        return returnMap;
-    }
-
-    /**
-     * Check whether the directory fufil those filters.
-     * @param file the directory to check
-     * @return true if fufil, false if not
-     */
-    public boolean isDirectoryFufilFilter(File file) {
-        return !(ignoreFileList.indexOf(file.getAbsolutePath()) != -1);
-    }
-
-    /**
-     * Check whether the file fufil those filters.
-     * @param file the file to check
-     * @return true if fufil, false if not
-     */
-    public boolean isFileFufilFilter(File file) {
-        return !((!allowedExtensionList.isEmpty() && allowedExtensionList.indexOf(CommonUtil.getFileExtension(file.getName())) == -1)
-                || (!disallowedExtensionList.isEmpty() && disallowedExtensionList.indexOf(CommonUtil.getFileExtension(file.getName())) != -1)
-                || ignoreFileList.indexOf(file.getAbsolutePath()) != -1);
     }
 
     public SyncFile getSyncFileByAbsolutePath(String path) {
         String absolutePath = new File(path).getAbsolutePath();
 
         SyncFile returnSyncFile = null;
-        synchronized (digestedDataFileList) {
-            for (Map<String, SyncFile> fileMap : digestedDataFileList.values()) {
-                if ((returnSyncFile = fileMap.get(absolutePath)) != null) {
+        synchronized (syncFileList) {
+            for (SyncFile _syncFile : syncFileList) {
+                String replacedString = absolutePath.replace(_syncFile.getAbsolutePath(), "");
+                if (replacedString.isEmpty()) {
+                    return _syncFile;
+                }
+                replacedString = replacedString.substring(1);
+                if ((returnSyncFile = _syncFile.findSyncFile(replacedString)) != null) {
                     return returnSyncFile;
                 }
             }
         }
+
         return returnSyncFile;
     }
 

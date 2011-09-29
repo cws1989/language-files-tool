@@ -18,7 +18,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.plaf.basic.BasicButtonUI;
-import langfiles.gui.TabComponentListener;
 import langfiles.util.CommonUtil;
 
 /**
@@ -34,7 +33,7 @@ public class JTabComponent extends JPanel {
     private JTabbedPane pane;
     private JLabel titleLabel;
     private TabCloseButton tabCloseButton;
-    private final List<TabComponentListener> tabComponentListenerList;
+    private final List<JTabComponentListener> tabComponentListenerList;
 
     /**
      * Constructor.
@@ -45,7 +44,7 @@ public class JTabComponent extends JPanel {
         setLayout(new BorderLayout());
 
         this.pane = pane;
-        tabComponentListenerList = Collections.synchronizedList(new ArrayList<TabComponentListener>());
+        tabComponentListenerList = Collections.synchronizedList(new ArrayList<JTabComponentListener>());
         setOpaque(false);
 
         titleLabel = new JLabel() {
@@ -101,11 +100,11 @@ public class JTabComponent extends JPanel {
         }
     }
 
-    public void addTabComponentListener(TabComponentListener listener) {
+    public void addTabComponentListener(JTabComponentListener listener) {
         tabComponentListenerList.add(listener);
     }
 
-    public void removeTabComponentListener(TabComponentListener listener) {
+    public void removeTabComponentListener(JTabComponentListener listener) {
         tabComponentListenerList.remove(listener);
     }
 
@@ -141,7 +140,7 @@ public class JTabComponent extends JPanel {
                         Component tab = TabCloseButton.this.pane.getComponentAt(tabIndex);
                         TabCloseButton.this.pane.removeTabAt(tabIndex);
                         synchronized (tabComponentListenerList) {
-                            for (TabComponentListener listener : tabComponentListenerList) {
+                            for (JTabComponentListener listener : tabComponentListenerList) {
                                 listener.tabClosed(tab, TabCloseButton.this.tabComponent);
                             }
                         }

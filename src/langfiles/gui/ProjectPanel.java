@@ -33,6 +33,8 @@ import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import langfiles.Main;
 import langfiles.project.Project;
+import langfiles.project.ProjectFileListener;
+import langfiles.project.ProjectListener;
 import langfiles.util.Config;
 import langfiles.util.SortedArrayList;
 import langfiles.util.SyncFile;
@@ -68,6 +70,8 @@ public class ProjectPanel {
      */
     private final List<Project> projectList;
     private final Map<Project, List<String>> projectExpandCollapseRecordList;
+    //
+    private SyncFileListener syncFileListener;
 
     /**
      * Constructor
@@ -81,6 +85,19 @@ public class ProjectPanel {
         projectPanel = new JPanel();
         projectPanel.setBackground(projectPanel.getBackground().brighter());
         projectPanel.setLayout(new BorderLayout());
+
+        mainWindow.addProjectEventListener(new ProjectListener() {
+
+            @Override
+            public void projectAdded(Project project) {
+                addProject(project);
+            }
+
+            @Override
+            public void projectRemoved(Project project) {
+                removeProject(project);
+            }
+        });
 
         //<editor-fold defaultstate="collapsed" desc="tree">
         rootNode = new DefaultMutableTreeNode(new ProjectTreeNode(ProjectTreeNode.Type.PROJECTS, "Projects", ""));
@@ -306,6 +323,114 @@ public class ProjectPanel {
                 }
             }
         });
+
+        syncFileListener = new SyncFileListener() {
+
+            @Override
+            public void fileCreated(SyncFile directory, SyncFile fileCreated, String rootPath, String name) {
+                DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) directory.getUserObject("treeNode");
+                if (fileTreeNode == null) {
+                    return;
+                }
+
+                addChildNodes(new ArrayList<String>(), new ArrayList<TreePath>(), fileTreeNode, fileCreated);
+
+                DefaultTreeModel treeModel = (DefaultTreeModel) tree.getModel();
+                treeModel.reload(fileTreeNode);
+            }
+
+            @Override
+            public void fileDeleted(SyncFile fileDeleted, String rootPath, String name) {
+                DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) fileDeleted.getUserObject("treeNode");
+                if (fileTreeNode == null) {
+                    return;
+                }
+                DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) fileTreeNode.getParent();
+
+                fileTreeNode.removeFromParent();
+
+                DefaultTreeModel treeModel = (DefaultTreeModel) tree.getModel();
+                treeModel.reload(parentNode);
+            }
+
+            @Override
+            public void fileModified(SyncFile fileModified, String rootPath, String name) {
+                // do nothing
+            }
+
+            @Override
+            public void fileRenamed(SyncFile fileRenamed, String rootPath, String oldName, String newName) {
+                DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) fileRenamed.getUserObject("treeNode");
+                if (fileTreeNode == null) {
+                    return;
+                }
+
+                ProjectTreeNode projectTreeNode = (ProjectTreeNode) fileTreeNode.getUserObject();
+                if (projectTreeNode == null) {
+                    return;
+                }
+
+                projectTreeNode.setTitle(new File(rootPath + "/" + newName).getName());
+                DefaultMutableTreeNode parentTreeNode = (DefaultMutableTreeNode) fileTreeNode.getParent();
+                sort(parentTreeNode, fileTreeNode, fileRenamed);
+
+                DefaultTreeModel treeModel = (DefaultTreeModel) tree.getModel();
+                treeModel.reload(parentTreeNode);
+            }
+        };
+    }
+
+    protected void sort(DefaultMutableTreeNode parentNode, DefaultMutableTreeNode childNode, SyncFile childSyncFile) {
+        int childOldPos = parentNode.getIndex(childNode);
+        parentNode.remove(childOldPos);
+
+        int index = 0, count = 0;
+        if (childSyncFile.isDirectory()) {
+            Enumeration<?> enumeration = parentNode.children();
+            while (enumeration.hasMoreElements()) {
+                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) enumeration.nextElement();
+
+                ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
+                SyncFile _syncFile = (SyncFile) projectTreeNode.getUserObject();
+
+                if (!_syncFile.isDirectory()) {
+                    break;
+                }
+                if (_syncFile.getAbsolutePath().equals(childSyncFile.getAbsolutePath())) {
+                    return;
+                }
+                int compareResult = childSyncFile.getFileName().compareTo(_syncFile.getFileName());
+                if (compareResult > 0) {
+                    index = count + 1;
+                }
+
+                count++;
+            }
+        } else {
+            Enumeration<?> enumeration = parentNode.children();
+            while (enumeration.hasMoreElements()) {
+                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) enumeration.nextElement();
+
+                ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
+                SyncFile _syncFile = (SyncFile) projectTreeNode.getUserObject();
+
+                if (_syncFile.isDirectory()) {
+                    index = count + 1;
+                } else {
+                    if (_syncFile.getAbsolutePath().equals(childSyncFile.getAbsolutePath())) {
+                        return;
+                    }
+                    int compareResult = childSyncFile.getFileName().compareTo(_syncFile.getFileName());
+                    if (compareResult > 0) {
+                        index = count + 1;
+                    }
+                }
+
+                count++;
+            }
+        }
+
+        parentNode.insert(childNode, index);
     }
 
     public void getAllExpandedNodes(JTree tree, DefaultMutableTreeNode node, List<DefaultMutableTreeNode> expandedNodeList) {
@@ -361,7 +486,7 @@ public class ProjectPanel {
         // source files node
         ProjectTreeNode sourceFilesProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.SOURCE_FILES, "Source Files", null);
         sourceFilesProjectTreeNode.setUserObject(project);
-        DefaultMutableTreeNode sourceFilesNode = new DefaultMutableTreeNode(sourceFilesProjectTreeNode);
+        final DefaultMutableTreeNode sourceFilesNode = new DefaultMutableTreeNode(sourceFilesProjectTreeNode);
         projectNode.add(sourceFilesNode);
 
         List<TreePath> pathsToExpand = new ArrayList<TreePath>();
@@ -382,6 +507,51 @@ public class ProjectPanel {
                 tree.expandPath(treePath);
             }
         }
+
+        project.addFileListener(new ProjectFileListener() {
+
+            @Override
+            public void projectFileAdded(SyncFile syncFile) {
+                addChildNodes(new ArrayList<String>(), new ArrayList<TreePath>(), sourceFilesNode, syncFile);
+            }
+
+            @Override
+            public void projectFileRemoved(SyncFile syncFile) {
+                DefaultMutableTreeNode nodeToRemove = null;
+
+                Enumeration<?> enumeration = sourceFilesNode.children();
+                while (enumeration.hasMoreElements()) {
+                    DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) enumeration.nextElement();
+                    ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
+                    if (projectTreeNode.getUserObject().equals(syncFile)) {
+                        nodeToRemove = treeNode;
+                        break;
+                    }
+                }
+
+                if (nodeToRemove != null) {
+                    rootNode.remove(nodeToRemove);
+                }
+            }
+        });
+    }
+
+    public void removeProject(Project project) {
+        DefaultMutableTreeNode nodeToRemove = null;
+
+        Enumeration<?> enumeration = rootNode.children();
+        while (enumeration.hasMoreElements()) {
+            DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) enumeration.nextElement();
+            ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
+            if (project.equals(projectTreeNode.getUserObject())) {
+                nodeToRemove = treeNode;
+                break;
+            }
+        }
+
+        if (nodeToRemove != null) {
+            rootNode.remove(nodeToRemove);
+        }
     }
 
     /**
@@ -390,149 +560,39 @@ public class ProjectPanel {
      * @param syncFile the file to add and recurse on
      */
     public void addChildNodes(List<String> projectExpandCollapseRecord, List<TreePath> pathsToExpand, DefaultMutableTreeNode parentNode, SyncFile syncFile) {
-        SyncFileListener listener = new SyncFileListener() {
-
-            @Override
-            public void fileCreated(SyncFile directory, SyncFile fileCreated, String rootPath, String name) {
-                DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) directory.getUserObject("treeNode");
-                if (fileTreeNode == null) {
-                    return;
-                }
-
-                addChildNodes(new ArrayList<String>(), new ArrayList<TreePath>(), fileTreeNode, fileCreated);
-
-                DefaultTreeModel treeModel = (DefaultTreeModel) tree.getModel();
-                treeModel.reload(fileTreeNode);
-            }
-
-            @Override
-            public void fileDeleted(SyncFile fileDeleted, String rootPath, String name) {
-                DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) fileDeleted.getUserObject("treeNode");
-                if (fileTreeNode == null) {
-                    return;
-                }
-                DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) fileTreeNode.getParent();
-
-                fileTreeNode.removeFromParent();
-
-                DefaultTreeModel treeModel = (DefaultTreeModel) tree.getModel();
-                treeModel.reload(parentNode);
-            }
-
-            @Override
-            public void fileModified(SyncFile fileModified, String rootPath, String name) {
-                // do nothing
-            }
-
-            @Override
-            public void fileRenamed(SyncFile fileRenamed, String rootPath, String oldName, String newName) {
-                DefaultMutableTreeNode fileTreeNode = (DefaultMutableTreeNode) fileRenamed.getUserObject("treeNode");
-                if (fileTreeNode == null) {
-                    return;
-                }
-
-                ProjectTreeNode projectTreeNode = (ProjectTreeNode) fileTreeNode.getUserObject();
-                if (projectTreeNode == null) {
-                    return;
-                }
-
-                projectTreeNode.setTitle(new File(rootPath + "/" + newName).getName());
-
-                DefaultTreeModel treeModel = (DefaultTreeModel) tree.getModel();
-                treeModel.reload(fileTreeNode);
-            }
-        };
+        DefaultMutableTreeNode _childNode = null;
         if (syncFile.isDirectory()) {
-            DefaultMutableTreeNode folderNode = null;
+            ProjectTreeNode folderProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FOLDER, syncFile.getFileName(), null);
+            folderProjectTreeNode.setUserObject(syncFile);
 
-            int index = parentNode.getChildCount(), count = 0;
-            Enumeration<?> enumeration = parentNode.children();
-            while (enumeration.hasMoreElements()) {
-                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) enumeration.nextElement();
-
-                ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
-                SyncFile _syncFile = (SyncFile) projectTreeNode.getUserObject();
-
-                if (!_syncFile.isDirectory()) {
-                    index = count;
-                    break;
-                }
-                if (_syncFile.getFile().getAbsolutePath().equals(syncFile.getFile().getAbsolutePath())) {
-                    folderNode = treeNode;
-                }
-                int compareResult = syncFile.getFile().getName().compareTo(_syncFile.getFile().getName());
-                if (_syncFile.isDirectory() && compareResult < 0) {
-                    if (compareResult < 0) {
-                        index = count;
-                    } else {
-                        break;
-                    }
-                }
-
-                count++;
-            }
-
-            if (folderNode == null) {
-                ProjectTreeNode folderProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FOLDER, syncFile.getFile().getName(), null);
-                folderProjectTreeNode.setUserObject(syncFile);
-
-                folderNode = new DefaultMutableTreeNode(folderProjectTreeNode);
-                parentNode.insert(folderNode, index);
-            }
+            _childNode = new DefaultMutableTreeNode(folderProjectTreeNode);
+            parentNode.add(_childNode);
 
             List<SyncFile> fileList = syncFile.getChildSyncFileList();
             for (SyncFile _file : fileList) {
-                addChildNodes(projectExpandCollapseRecord, pathsToExpand, folderNode, _file);
+                addChildNodes(projectExpandCollapseRecord, pathsToExpand, _childNode, _file);
             }
 
             synchronized (projectExpandCollapseRecordList) {
-                String directoryPath = syncFile.getFile().getAbsolutePath();
+                String directoryPath = syncFile.getAbsolutePath();
 
                 for (String _path : projectExpandCollapseRecord) {
                     if (directoryPath.equals(_path)) {
-                        TreePath pathToNode = new TreePath(((DefaultTreeModel) tree.getModel()).getPathToRoot(folderNode));
+                        TreePath pathToNode = new TreePath(((DefaultTreeModel) tree.getModel()).getPathToRoot(_childNode));
                         pathsToExpand.add(pathToNode);
                     }
                 }
             }
-
-            syncFile.setUserObject("treeNode", folderNode);
-            syncFile.addListener(listener);
         } else {
-            int index = parentNode.getChildCount(), count = 0;
-            Enumeration<?> enumeration = parentNode.children();
-            while (enumeration.hasMoreElements()) {
-                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) enumeration.nextElement();
-                ProjectTreeNode projectTreeNode = (ProjectTreeNode) treeNode.getUserObject();
-                SyncFile _syncFile = (SyncFile) projectTreeNode.getUserObject();
-
-                if (_syncFile.isDirectory()) {
-                    continue;
-                }
-                if (_syncFile.getFile().getAbsolutePath().equals(syncFile.getFile().getAbsolutePath())) {
-                    return;
-                }
-                int compareResult = syncFile.getFile().getName().compareTo(_syncFile.getFile().getName());
-                if (!_syncFile.isDirectory() && compareResult < 0) {
-                    if (compareResult < 0) {
-                        index = count;
-                    } else {
-                        break;
-                    }
-                }
-
-                count++;
-            }
-
-            ProjectTreeNode fileProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FILE, syncFile.getFile().getName(), null);
+            ProjectTreeNode fileProjectTreeNode = new ProjectTreeNode(ProjectTreeNode.Type.FILE, syncFile.getFileName(), null);
             fileProjectTreeNode.setUserObject(syncFile);
 
-            DefaultMutableTreeNode fileTreeNode = new DefaultMutableTreeNode(fileProjectTreeNode);
-            parentNode.insert(fileTreeNode, index);
-
-            syncFile.setUserObject("treeNode", fileTreeNode);
-            syncFile.addListener(listener);
+            _childNode = new DefaultMutableTreeNode(fileProjectTreeNode);
+            parentNode.add(_childNode);
         }
+        syncFile.setUserObject("treeNode", _childNode);
+        syncFile.addListener(syncFileListener);
+        sort(parentNode, _childNode, syncFile);
     }
 
     /**

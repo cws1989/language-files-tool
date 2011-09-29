@@ -66,7 +66,7 @@ public class ConfigTool implements Config {
      */
     protected void addWatch() throws JNotifyException {
         removeWatch();
-        watchId = JNotify.addWatch(new File(configPath).getParent(), JNotify.FILE_ANY, false, new JNotifyAdapter() {
+        watchId = JNotify.addWatch(new File(configPath).getParent(), JNotify.FILE_MODIFIED, false, new JNotifyAdapter() {
 
             @Override
             public void fileModified(int watchId, String rootPath, String name) {
