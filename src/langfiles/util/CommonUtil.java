@@ -17,9 +17,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.ToolTipManager;
@@ -34,6 +32,35 @@ import javax.swing.undo.UndoManager;
 public class CommonUtil {
 
     private CommonUtil() {
+    }
+
+    /**
+     * Check if the input represent a binary file or not.
+     * This is mainly used for distinguish between binary and text file.
+     * Currently it check for 3 continuous null (0x00). It should work fine with up to UTF-16.
+     * If the encoding is UTF-32, it should be check for at least 6 continuous null but some small binary file do not have so much continuous null but 3 to 5 (sure, no proof, no research).
+     * UTF-32 worse case (hex): 00 XX 00 00  00 00 00 XX.
+     * @param b the byte array to check
+     * @param offset the offset
+     * @param length the length
+     * @return true if it is highly likely to be a binary file
+     */
+    public static boolean isBinaryFile(byte[] b, int offset, int length) {
+        int continuousNull = 0;
+        for (int i = offset, iEnd = offset + length; i < iEnd; i++) {
+            if (b[i] == 0) {
+                continuousNull++;
+                if (continuousNull >= 3) {
+                    return true;
+                }
+            } else {
+                if (continuousNull != 0) {
+                    continuousNull = 0;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -133,62 +160,61 @@ public class CommonUtil {
         return filePath;
     }
 
-    /**
-     * Get the files recursively from the directory and filter the result with specified allowed extensions.
-     * @param directory the directory to loop through
-     * @param allowedExtensions allowed file extensions in list form; if it is empty, that means allow all file extensions
-     * @return the files that match the requirements
-     */
-    public static List<File> getFiles(File directory, List<String> allowedExtensions) {
-        // remove the first dot of the extension (if any)
-        for (int i = 0, extensionsLength = allowedExtensions.size(); i < extensionsLength; i++) {
-            ListIterator<String> iterator = allowedExtensions.listIterator();
-            while (iterator.hasNext()) {
-                String ext = iterator.next();
-                if (ext.charAt(0) == '.') {
-                    iterator.set(ext.substring(1));
-                }
-            }
-        }
-
-        List<File> returnList = new ArrayList<File>();
-
-        List<File> tempList = new ArrayList<File>();
-        getFilesRecusive(tempList, directory);
-        for (File file : tempList) {
-            String fileExtension = getFileExtension(file.getName());
-            if (allowedExtensions.isEmpty() || allowedExtensions.indexOf(fileExtension) != -1) {
-                returnList.add(file);
-            }
-        }
-
-        return returnList;
-    }
-
-    /**
-     * Private use for {@link #getFiles(java.io.File, java.util.List)}.
-     * @param existingList a list of existing files, for redundancy/loop checking
-     * @param directory the directory to get files from
-     */
-    private static void getFilesRecusive(List<File> existingList, File directory) {
-        if (!directory.isDirectory()) {
-            return;
-        }
-
-        File[] files = directory.listFiles();
-        for (File file : files) {
-            if (existingList.contains(file)) {
-                continue;
-            }
-
-            if (file.isDirectory()) {
-                getFilesRecusive(existingList, file);
-            } else {
-                existingList.add(file);
-            }
-        }
-    }
-
+//    /**
+//     * Get the files recursively from the directory and filter the result with specified allowed extensions.
+//     * @param directory the directory to loop through
+//     * @param allowedExtensions allowed file extensions in list form; if it is empty, that means allow all file extensions
+//     * @return the files that match the requirements
+//     */
+//    public static List<File> getFiles(File directory, List<String> allowedExtensions) {
+//        // remove the first dot of the extension (if any)
+//        for (int i = 0, extensionsLength = allowedExtensions.size(); i < extensionsLength; i++) {
+//            ListIterator<String> iterator = allowedExtensions.listIterator();
+//            while (iterator.hasNext()) {
+//                String ext = iterator.next();
+//                if (ext.charAt(0) == '.') {
+//                    iterator.set(ext.substring(1));
+//                }
+//            }
+//        }
+//
+//        List<File> returnList = new ArrayList<File>();
+//
+//        List<File> tempList = new ArrayList<File>();
+//        getFilesRecusive(tempList, directory);
+//        for (File file : tempList) {
+//            String fileExtension = getFileExtension(file.getName());
+//            if (allowedExtensions.isEmpty() || allowedExtensions.indexOf(fileExtension) != -1) {
+//                returnList.add(file);
+//            }
+//        }
+//
+//        return returnList;
+//    }
+//
+//    /**
+//     * Private use for {@link #getFiles(java.io.File, java.util.List)}.
+//     * @param existingList a list of existing files, for redundancy/loop checking
+//     * @param directory the directory to get files from
+//     */
+//    private static void getFilesRecusive(List<File> existingList, File directory) {
+//        if (!directory.isDirectory()) {
+//            return;
+//        }
+//
+//        File[] files = directory.listFiles();
+//        for (File file : files) {
+//            if (existingList.contains(file)) {
+//                continue;
+//            }
+//
+//            if (file.isDirectory()) {
+//                getFilesRecusive(existingList, file);
+//            } else {
+//                existingList.add(file);
+//            }
+//        }
+//    }
     /**
      * Return the file file extension of the filePath. Directory part and file name part will be removed.
      * <p>
@@ -210,27 +236,26 @@ public class CommonUtil {
         return fileName;
     }
 
-    /**
-     * Return the file name of the filePath. Directory part and file extension will be removed.
-     * <p>
-     * e.g. C:\Program Files\Language Files Tool\test.txt -> test,<br />
-     * e.g. C:/ProgramFiles/LanguageFilesTool/test.txt -> test,<br />
-     * e.g. test.temp.php -> temp
-     * </p>
-     * @param filePath the file path
-     * @return the file name
-     */
-    public static String getFileName(String filePath) {
-        String fileName = removeFileDirectory(filePath);
-
-        int pos = fileName.indexOf('.');
-        if (pos != -1 && pos != 0) {
-            return fileName.substring(0, pos);
-        }
-
-        return fileName;
-    }
-
+//    /**
+//     * Return the file name of the filePath. Directory part and file extension will be removed.
+//     * <p>
+//     * e.g. C:\Program Files\Language Files Tool\test.txt -> test,<br />
+//     * e.g. C:/ProgramFiles/LanguageFilesTool/test.txt -> test,<br />
+//     * e.g. test.temp.php -> temp
+//     * </p>
+//     * @param filePath the file path
+//     * @return the file name
+//     */
+//    public static String getFileName(String filePath) {
+//        String fileName = removeFileDirectory(filePath);
+//
+//        int pos = fileName.indexOf('.');
+//        if (pos != -1 && pos != 0) {
+//            return fileName.substring(0, pos);
+//        }
+//
+//        return fileName;
+//    }
     /**
      * Remove the directory part of the filePath if exist.
      * <p>

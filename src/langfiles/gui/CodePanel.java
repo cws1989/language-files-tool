@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import javax.swing.Icon;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
@@ -134,18 +135,35 @@ public class CodePanel {
         // selected
         lastSelectedTabFileAbsolutePath = preference.getProperty("code_panel/selected");
 
+        //<editor-fold defaultstate="collapsed" desc="ctrl+w event">
         // add global listener to listen to ctrl + w to close current selected tab
-        // if allow multiple MainWindow, need to remove this listener before/after window closed, also determine whether current frame is active frame (may move to MainWindow)
-        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(new KeyEventDispatcher() {
+        final KeyEventDispatcher keyEventDispatcher = new KeyEventDispatcher() {
 
             @Override
             public boolean dispatchKeyEvent(KeyEvent e) {
                 if (e.getID() == KeyEvent.KEY_PRESSED && e.isControlDown() && e.getKeyCode() == KeyEvent.VK_W) {
+                    if (!CodePanel.this.mainWindow.getGUI().isFocused()) {
+                        return false;
+                    }
                     closeSelectedTab();
                 }
                 return false;
             }
+        };
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(keyEventDispatcher);
+        mainWindow.addMainWindowEventListener(new MainWindowEventListener() {
+
+            @Override
+            public boolean windowCanCloseNow(ChangeEvent event) {
+                return true;
+            }
+
+            @Override
+            public void windowIsClosing(ChangeEvent event) {
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(keyEventDispatcher);
+            }
         });
+        //</editor-fold>
     }
 
     /**
@@ -156,11 +174,15 @@ public class CodePanel {
         return codePanel;
     }
 
+    public void add(SyncFile syncFile, boolean getFocus) {
+        add(syncFile, getFocus, null);
+    }
+
     /**
      * Add file to code panel.
      * @param syncFile the file to add to code panel
      */
-    public void add(final SyncFile syncFile, final boolean getFocus) {
+    public void add(final SyncFile syncFile, final boolean getFocus, final Icon icon) {
         String filePath = syncFile.getAbsolutePath();
         for (int i = 0, iEnd = tabbedPane.getTabCount(); i < iEnd; i++) {
             CodePanelTab codePanelTab = (CodePanelTab) tabbedPane.getComponentAt(i);
@@ -191,8 +213,14 @@ public class CodePanel {
             }
 
             @Override
-            public void fileModified(SyncFile fileModified, String rootPath, String name) {
-                codeViewer.setCode(fileModified);
+            public void fileModified(final SyncFile fileModified, String rootPath, String name) {
+                SwingUtilities.invokeLater(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        codeViewer.setCode(fileModified);
+                    }
+                });
             }
 
             @Override
@@ -213,7 +241,7 @@ public class CodePanel {
 
             @Override
             public void run() {
-                JTabComponent tabComponent = new JTabComponent(tabbedPane);
+                JTabComponent tabComponent = new JTabComponent(tabbedPane, icon);
                 tabComponent.addTabComponentListener(new JTabComponentListener() {
 
                     @Override
@@ -229,7 +257,13 @@ public class CodePanel {
                 if (getFocus
                         | (lastSelectedTabFileAbsolutePath != null && lastSelectedTabFileAbsolutePath.equals(syncFile.getAbsolutePath()))) {
                     lastSelectedTabFileAbsolutePath = null;
-                    tabbedPane.setSelectedComponent(codePanelTab);
+                    SwingUtilities.invokeLater(new Runnable() {
+
+                        @Override
+                        public void run() {
+                            tabbedPane.setSelectedComponent(codePanelTab);
+                        }
+                    });
                 }
             }
         });

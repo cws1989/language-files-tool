@@ -13,12 +13,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import javax.swing.BorderFactory;
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.plaf.basic.BasicButtonUI;
-import langfiles.util.CommonUtil;
 
 /**
  * The tab component with close button.
@@ -40,6 +40,10 @@ public class JTabComponent extends JPanel {
      * @param pane the tabbed pane to bind to
      */
     public JTabComponent(JTabbedPane pane) {
+        this(pane, null);
+    }
+
+    public JTabComponent(JTabbedPane pane, Icon icon) {
         super(new FlowLayout(FlowLayout.LEFT, 0, 0));
         setLayout(new BorderLayout());
 
@@ -60,7 +64,7 @@ public class JTabComponent extends JPanel {
                     String currentTitle = JTabComponent.this.pane.getTitleAt(tabIndex);
                     if (!currentTitle.equals(labelTitle)) {
                         labelTitle = currentTitle;
-                        labelWidth = CommonUtil.getFontMetrics(getFont()).stringWidth(labelTitle) + 3;
+                        labelWidth = getFontMetrics(getFont()).stringWidth(labelTitle) + 3;
                     }
                     return labelTitle;
                 }
@@ -72,7 +76,9 @@ public class JTabComponent extends JPanel {
                 if (labelTitle == null) {
                     return super.getPreferredSize();
                 } else {
-                    return new Dimension(labelWidth, (int) super.getPreferredSize().getHeight());
+                    Icon imageIcon = getIcon();
+                    int iconOffset = imageIcon != null ? imageIcon.getIconWidth() + getIconTextGap() : 0;
+                    return new Dimension(labelWidth + iconOffset, (int) super.getPreferredSize().getHeight());
                 }
             }
 
@@ -81,11 +87,16 @@ public class JTabComponent extends JPanel {
                 if (labelTitle == null) {
                     return super.getWidth();
                 } else {
-                    return labelWidth;
+                    Icon imageIcon = getIcon();
+                    int iconOffset = imageIcon != null ? imageIcon.getIconWidth() + getIconTextGap() : 0;
+                    return labelWidth + iconOffset;
                 }
             }
         };
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 3));
+        if (icon != null) {
+            titleLabel.setIcon(icon);
+        }
         add(titleLabel, BorderLayout.CENTER);
 
         add(tabCloseButton = new TabCloseButton(pane, this), BorderLayout.EAST);
@@ -170,8 +181,16 @@ public class JTabComponent extends JPanel {
             } else {
                 graphics2D.setColor(getBackground().darker().darker());
             }
-            graphics2D.drawLine(5, 5, getWidth() - 2, getHeight() - 5);
-            graphics2D.drawLine(5, getHeight() - 5, getWidth() - 2, 5);
+
+            // keep the cross be 4x4 pixels
+            int width = getWidth(), height = getHeight();
+            int startY = (height - 4) / 2;
+            int endY = startY + 4;
+            int startX = width - 4 - 2;
+            int endX = width - 2;
+
+            graphics2D.drawLine(startX, startY, endX, endY);
+            graphics2D.drawLine(startX, endY, endX, startY);
 
             graphics2D.dispose();
         }

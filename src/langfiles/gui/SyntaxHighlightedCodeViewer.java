@@ -13,7 +13,6 @@ import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
-import javax.swing.SwingUtilities;
 import javax.swing.text.BadLocationException;
 import langfiles.project.CodeViewer;
 import langfiles.util.SyncFile;
@@ -37,18 +36,11 @@ public class SyntaxHighlightedCodeViewer implements CodeViewer {
 
     @Override
     public void setCode(final SyncFile syncFile) {
-        SwingUtilities.invokeLater(new Runnable() {
-
-            @Override
-            public void run() {
-                try {
-                    highlighter.setContent(syncFile.getFile());
-                } catch (IOException ex) {
-                    System.out.println("1");
-                    Logger.getLogger(SyntaxHighlightedCodeViewer.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-        });
+        try {
+            highlighter.setContent(syncFile.getFile());
+        } catch (IOException ex) {
+            Logger.getLogger(SyntaxHighlightedCodeViewer.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @Override

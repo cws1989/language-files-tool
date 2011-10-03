@@ -25,6 +25,7 @@ import langfiles.project.Project;
 import langfiles.project.ProjectListener;
 import langfiles.util.CommonUtil;
 import langfiles.util.Config;
+import langfiles.util.Splash;
 
 /**
  * The main window of the program.
@@ -70,6 +71,8 @@ public class MainWindow {
      * Constructor.
      */
     public MainWindow(List<Project> projectList) {
+        Splash.updateMessage("Initializing GUI ...");
+
         mainWindowEventListenerList = Collections.synchronizedList(new ArrayList<MainWindowEventListener>());
         this.projectList = Collections.synchronizedList(new ArrayList<Project>(projectList));
         projectEventListenerList = Collections.synchronizedList(new ArrayList<ProjectListener>());
@@ -159,7 +162,11 @@ public class MainWindow {
             }
         };
 
+        Splash.updateMessage("Initializing Menu Bar ...");
+
         menuBar = new MenuBar(this);
+
+        Splash.updateMessage("Initializing Content Panel ...");
 
         //<editor-fold defaultstate="collapsed" desc="content panel">
         toolBar = new ToolBar(this);
@@ -190,6 +197,8 @@ public class MainWindow {
             }
         });
         //</editor-fold>
+
+        Splash.updateMessage("Initializing Main Window ...");
 
         //<editor-fold defaultstate="collapsed" desc="frame">
         window = new JFrame();
@@ -237,6 +246,8 @@ public class MainWindow {
         window.setJMenuBar(menuBar.getGUI());
         window.setContentPane(contentPanel);
         window.pack();
+
+        Splash.updateMessage("Getting GUI Preference ...");
 
         Config preference = Main.getInstance().getPreference();
 

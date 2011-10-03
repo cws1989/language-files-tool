@@ -1,6 +1,5 @@
 package langfiles.gui.component;
 
-import langfiles.gui.component.JTabComponent;
 import java.awt.Component;
 
 /**

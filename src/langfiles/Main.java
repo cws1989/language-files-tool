@@ -1,5 +1,7 @@
 package langfiles;
 
+import java.awt.Font;
+import java.awt.Point;
 import langfiles.util.CommonUtil;
 import langfiles.util.LoggingPrintStream;
 import langfiles.gui.MainWindowEventListener;
@@ -27,6 +29,7 @@ import langfiles.gui.MainWindow;
 import langfiles.project.Project;
 import langfiles.util.Config;
 import langfiles.util.ConfigTool;
+import langfiles.util.Splash;
 
 /**
  * The main class.
@@ -76,6 +79,11 @@ public class Main {
      * Constructor. Should invoke {@link #initialize} after construction.
      */
     private Main() {
+        Splash.setPosition(new Point(140, 25));
+        Splash.setFont(new Font("Tahoma", Font.PLAIN, 12));
+
+        Splash.updateMessage("Initializing ...");
+
         mainWindowList = Collections.synchronizedList(new ArrayList<MainWindow>());
 
         //<editor-fold defaultstate="collapsed" desc="storage path">
