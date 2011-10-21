@@ -53,6 +53,7 @@ public class MainWindow {
      * The code panel of the window.
      */
     private CodePanel codePanel;
+    private StatusBar statusBar;
     /**
      * Program event listener list.
      */
@@ -182,11 +183,14 @@ public class MainWindow {
         String splitPaneDividerLocation = Main.getInstance().getPreference().getProperty("main_window/split_pane_divider_location");
         splitPane.setDividerLocation(splitPaneDividerLocation != null ? Integer.parseInt(splitPaneDividerLocation) : 250);
 
+        statusBar = new StatusBar();
+
         JPanel contentPanel = new JPanel();
         contentPanel.setPreferredSize(new Dimension(1000, 630));
         contentPanel.setLayout(new BorderLayout());
         contentPanel.add(toolBar.getGUI(), BorderLayout.NORTH);
         contentPanel.add(splitPane, BorderLayout.CENTER);
+        contentPanel.add(statusBar.getGUI(), BorderLayout.SOUTH);
 
         Main.getInstance().addShutdownEvent(100, new Runnable() {
 

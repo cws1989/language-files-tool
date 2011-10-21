@@ -4,6 +4,7 @@ import langfiles.gui.component.JTabComponentListener;
 import langfiles.gui.component.JTabComponent;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Insets;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.KeyEvent;
@@ -17,6 +18,7 @@ import javax.swing.Icon;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import langfiles.Main;
 import langfiles.project.CodeViewer;
@@ -61,9 +63,20 @@ public class CodePanel {
         this.mainWindow = mainWindow;
         threadExecutor = Executors.newSingleThreadExecutor();
 
+        Insets contentBorderInsets = UIManager.getInsets("TabbedPane.contentBorderInsets");
+        Insets tabAreaInsets = UIManager.getInsets("TabbedPane.tabAreaInsets");
+
+        Insets insets = contentBorderInsets != null ? new Insets(1, 0, contentBorderInsets.bottom, contentBorderInsets.right) : new Insets(1, 0, 0, 0);
+        UIManager.put("TabbedPane.contentBorderInsets", insets);
+        insets = tabAreaInsets != null ? new Insets(tabAreaInsets.top, 1, tabAreaInsets.bottom, 0) : new Insets(3, 1, 0, 0);
+        UIManager.put("TabbedPane.tabAreaInsets", insets);
+
         tabbedPane = new JTabbedPane();
         tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
         tabbedPane.setFocusable(false);
+
+        UIManager.put("TabbedPane.contentBorderInsets", contentBorderInsets);
+        UIManager.put("TabbedPane.tabAreaInsets", tabAreaInsets);
 
         codePanel = new JPanel();
         codePanel.setLayout(new BorderLayout());
