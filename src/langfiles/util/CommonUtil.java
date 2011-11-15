@@ -14,6 +14,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -128,10 +129,24 @@ public class CommonUtil {
         byte[] buffer = new byte[(int) file.length()];
 
         FileInputStream fileIn = new FileInputStream(file);
-        fileIn.read(buffer);
-        fileIn.close();
+        try {
+            fileIn = new FileInputStream(file);
+            fileIn.read(buffer);
+        } finally {
+            closeQuietly(fileIn);
+        }
 
         return new String(buffer);
+    }
+
+    public static void closeQuietly(Closeable closeable) {
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (IOException ex) {
+                Logger.getLogger(CommonUtil.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     /**
@@ -302,11 +317,7 @@ public class CommonUtil {
     public static boolean mkdir(String directoryPath) {
         File directory = new File(directoryPath);
         if (!directory.exists()) {
-            try {
-                directory.mkdir();
-            } catch (SecurityException ex) {
-                return false;
-            }
+            directory.mkdir();
         }
         return directory.isDirectory();
     }
@@ -314,7 +325,7 @@ public class CommonUtil {
     /**
      * Invoke {@link #mkdir(String)} recursively on the list until receive true.
      * @param directoryPathList the directory path list
-     * @return the first succeed directory path, null if all failed
+     * @return the first succeed directory path, null if any failed
      */
     public static String mkdir(List<String> directoryPathList) {
         String succeedDirectoryPath = null;
