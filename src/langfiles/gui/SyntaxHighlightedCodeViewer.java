@@ -16,12 +16,12 @@ import javax.swing.JComponent;
 import javax.swing.text.BadLocationException;
 import langfiles.project.CodeViewer;
 import langfiles.util.SyncFile;
-import syntaxhighlighter.Brushes.BrushJava;
 import syntaxhighlighter.Parser.MatchResult;
 import syntaxhighlighter.SyntaxHighlighter;
 import syntaxhighlighter.SyntaxHighlighterPane;
 import syntaxhighlighter.Theme.Style;
-import syntaxhighlighter.Themes.ThemeDefault;
+import syntaxhighlighter.brush.BrushJava;
+import syntaxhighlighter.theme.ThemeDefault;
 
 /**
  * @author Chan Wai Shing <cws1989@gmail.com>
