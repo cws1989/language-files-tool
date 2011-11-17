@@ -6,8 +6,6 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.BorderFactory;
@@ -16,26 +14,24 @@ import javax.swing.JComponent;
 import javax.swing.text.BadLocationException;
 import langfiles.project.CodeViewer;
 import langfiles.util.SyncFile;
-import syntaxhighlighter.Parser.MatchResult;
-import syntaxhighlighter.SyntaxHighlighter;
-import syntaxhighlighter.SyntaxHighlighterPane;
-import syntaxhighlighter.Theme.Style;
-import syntaxhighlighter.brush.BrushJava;
-import syntaxhighlighter.theme.ThemeDefault;
+import prettify.SyntaxHighlighter;
+import prettify.SyntaxHighlighterPane;
+import prettify.Theme.Style;
+import prettify.theme.ThemeDefault;
 
 /**
  * @author Chan Wai Shing <cws1989@gmail.com>
  */
-public class SyntaxHighlightedCodeViewer implements CodeViewer {
+public class PrettifyCodeViewer implements CodeViewer {
 
     protected SyntaxHighlighter highlighter;
 
-    public SyntaxHighlightedCodeViewer() {
-        highlighter = new SyntaxHighlighter(new BrushJava(), new ThemeLangFilesTool(), new LangFilesToolHighlighterPane());
+    public PrettifyCodeViewer() {
+        highlighter = new SyntaxHighlighter(new ThemeLangFilesTool(), new LangFilesToolHighlighterPane());
     }
 
     @Override
-    public void setCode(final SyncFile syncFile) {
+    public void setCode(SyncFile syncFile) {
         try {
             highlighter.setContent(syncFile.getFile());
         } catch (IOException ex) {
@@ -70,14 +66,7 @@ public class SyntaxHighlightedCodeViewer implements CodeViewer {
         }
 
         @Override
-        public void setStyle(Map<String, List<MatchResult>> styleList) {
-            Map<Integer, MatchResult> orderedMap = new TreeMap<Integer, MatchResult>();
-            for (List<MatchResult> results : styleList.values()) {
-                for (MatchResult result : results) {
-                    orderedMap.put(result.getOffset(), result);
-                }
-            }
-
+        public void setStyle(List<Object> styleList) {
             super.setStyle(styleList);
 
             FontMetrics fontMetrics = getFontMetrics(getFont());
@@ -85,17 +74,21 @@ public class SyntaxHighlightedCodeViewer implements CodeViewer {
             float alignmentY = (float) fontMetrics.getAscent() / (float) fontHeight;
 
             int minusedLength = 0;
-            for (MatchResult result : orderedMap.values()) {
-                if (!result.getStyleKey().equals("string") || result.getLength() == 0) {
+            for (int i = 0, iEnd = styleList.size(); i < iEnd; i += 2) {
+                Integer offset = (Integer) styleList.get(i);
+                Integer length = (i + 2 < iEnd ? (Integer) styleList.get(i + 2) : getDocument().getLength()) - offset;
+                String styleKeyword = (String) styleList.get(i + 1);
+
+                offset -= minusedLength;
+
+                if (!styleKeyword.equals("str") || length == 0) {
                     continue;
                 }
 
-                int offset = result.getOffset() - minusedLength;
-
                 String _content = "";
                 try {
-                    _content = getDocument().getText(offset, result.getLength());
-                    getDocument().remove(offset, result.getLength());
+                    _content = getDocument().getText(offset, length);
+                    getDocument().remove(offset, length);
                 } catch (BadLocationException ex) {
                     Logger.getLogger(LangFilesToolHighlighterPane.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -108,7 +101,7 @@ public class SyntaxHighlightedCodeViewer implements CodeViewer {
                 checkBox.setOpaque(false);
                 checkBox.setAlignmentY(alignmentY);
 
-                Style style = getTheme().getStyle(result.getStyleKey());
+                Style style = getTheme().getStyle(styleKeyword);
                 checkBox.setForeground(style.getColor());
                 checkBox.setBackground(style.getBackground());
                 checkBox.setFont(setFont(getFont(), style.isBold(), style.isItalic()));
@@ -118,7 +111,7 @@ public class SyntaxHighlightedCodeViewer implements CodeViewer {
                 insertComponent(checkBox);
                 //</editor-fold>
 
-                minusedLength += result.getLength() - 1;
+                minusedLength += length - 1;
             }
 
             setCaretPosition(0);

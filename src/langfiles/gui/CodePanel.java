@@ -205,7 +205,7 @@ public class CodePanel {
             }
         }
 
-        final CodeViewer codeViewer = new SyntaxHighlightedCodeViewer();
+        final CodeViewer codeViewer = new PrettifyCodeViewer();
         codeViewer.setCode(syncFile);
 
         //<editor-fold defaultstate="collapsed" desc="syncFileListener">
