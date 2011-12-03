@@ -15,8 +15,8 @@ import javax.swing.text.BadLocationException;
 import langfiles.project.CodeViewer;
 import langfiles.util.SyncFile;
 import prettify.SyntaxHighlighter;
-import prettify.SyntaxHighlighterPane;
-import prettify.Theme.Style;
+import prettify.gui.SyntaxHighlighterPane;
+import prettify.theme.Style;
 import prettify.theme.ThemeDefault;
 
 /**
