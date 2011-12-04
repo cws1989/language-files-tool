@@ -412,7 +412,10 @@ public class SyncFile implements Comparable<Object> {
         }
     }
 
-    public FileContent getFileContent() throws IOException, SecurityException {
+    /**
+     * @todo detect charset, do not use UTF-8
+     */
+    public FileContent getFileContent() throws IOException {
         if (isDirectory()) {
             return null;
         }
@@ -420,7 +423,7 @@ public class SyncFile implements Comparable<Object> {
             FileContent returnObject = null;
             while (true) {
                 fileLastModified = file.lastModified();
-                String _content = CommonUtil.readFile(getFile());
+                String _content = new String(CommonUtil.readFile(getFile()), "UTF-8");
                 long _fileLastModified = file.lastModified();
                 if (fileLastModified == _fileLastModified) {
                     returnObject = new FileContent(fileLastModified, _content);
@@ -471,22 +474,18 @@ public class SyncFile implements Comparable<Object> {
 
     protected boolean isFileFufilFilter(File file) {
         synchronized (syncFileLock) {
-            try {
-                if (ignoreFileList.indexOf(file.getAbsolutePath()) != -1) {
+            if (ignoreFileList.indexOf(file.getAbsolutePath()) != -1) {
+                return false;
+            }
+            if (file.isDirectory()) {
+            } else {
+                String _fileName = file.getName();
+                if (!allowedFileExtensionList.isEmpty() && allowedFileExtensionList.indexOf(CommonUtil.getFileExtension(_fileName)) == -1) {
                     return false;
                 }
-                if (file.isDirectory()) {
-                } else {
-                    String _fileName = file.getName();
-                    if (!allowedFileExtensionList.isEmpty() && allowedFileExtensionList.indexOf(CommonUtil.getFileExtension(_fileName)) == -1) {
-                        return false;
-                    }
-                    if (!disallowedFileExtensionList.isEmpty() && disallowedFileExtensionList.indexOf(CommonUtil.getFileExtension(_fileName)) != -1) {
-                        return false;
-                    }
+                if (!disallowedFileExtensionList.isEmpty() && disallowedFileExtensionList.indexOf(CommonUtil.getFileExtension(_fileName)) != -1) {
+                    return false;
                 }
-            } catch (SecurityException ex) {
-                return false;
             }
             return true;
         }
@@ -619,8 +618,6 @@ public class SyncFile implements Comparable<Object> {
                         }
                     }
                 } catch (IOException ex) {
-                    Logger.getLogger(SyncFile.class.getName()).log(Level.INFO, null, ex);
-                } catch (SecurityException ex) {
                     Logger.getLogger(SyncFile.class.getName()).log(Level.INFO, null, ex);
                 }
             }

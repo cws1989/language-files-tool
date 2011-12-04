@@ -21,57 +21,57 @@ package langfiles.util;
 
 public class StringSimilarity {
 
-    private StringSimilarity() {
+  protected StringSimilarity() {
+  }
+
+  public static int levenshteinDistance(String s1, String s2) {
+    return levenshteinDistance(s1, s2, 1, 1, 1);
+  }
+
+  public static int levenshteinDistance(String s1, String s2, int cost_ins, int cost_rep, int cost_del) {
+    if (s1 == null || s2 == null) {
+      throw new NullPointerException("s1 or s2 is null");
     }
 
-    public static int levenshteinDistance(String s1, String s2) {
-        return levenshteinDistance(s1, s2, 1, 1, 1);
+    int l1 = s1.length(), l2 = s2.length();
+    char[] s1_chars = s1.toCharArray(), s2_chars = s2.toCharArray();
+
+    int c0 = 0, c1, c2;
+    int[] tmp;
+
+    if (l1 == 0) {
+      return l2 * cost_ins;
+    }
+    if (l2 == 0) {
+      return l1 * cost_del;
     }
 
-    public static int levenshteinDistance(String s1, String s2, int cost_ins, int cost_rep, int cost_del) {
-        if (s1 == null || s2 == null) {
-            throw new NullPointerException("s1 or s2 is null");
-        }
+    int[] p1 = new int[l2 + 1];
+    int[] p2 = new int[l2 + 1];
 
-        int l1 = s1.length(), l2 = s2.length();
-        char[] s1_chars = s1.toCharArray(), s2_chars = s2.toCharArray();
-
-        int c0 = 0, c1, c2;
-        int[] tmp;
-
-        if (l1 == 0) {
-            return l2 * cost_ins;
-        }
-        if (l2 == 0) {
-            return l1 * cost_del;
-        }
-
-        int[] p1 = new int[l2 + 1];
-        int[] p2 = new int[l2 + 1];
-
-        for (int i2 = 0; i2 <= l2; i2++) {
-            p1[i2] = i2 * cost_ins;
-        }
-        for (int i1 = 0; i1 < l1; i1++) {
-            p2[0] = p1[0] + cost_del;
-
-            for (int i2 = 0; i2 < l2; i2++) {
-                c0 = p1[i2] + ((s1_chars[i1] == s2_chars[i2]) ? 0 : cost_rep);
-                c1 = p1[i2 + 1] + cost_del;
-                if (c1 < c0) {
-                    c0 = c1;
-                }
-                c2 = p2[i2] + cost_ins;
-                if (c2 < c0) {
-                    c0 = c2;
-                }
-                p2[i2 + 1] = c0;
-            }
-            tmp = p1;
-            p1 = p2;
-            p2 = tmp;
-        }
-
-        return c0;
+    for (int i2 = 0; i2 <= l2; i2++) {
+      p1[i2] = i2 * cost_ins;
     }
+    for (int i1 = 0; i1 < l1; i1++) {
+      p2[0] = p1[0] + cost_del;
+
+      for (int i2 = 0; i2 < l2; i2++) {
+        c0 = p1[i2] + ((s1_chars[i1] == s2_chars[i2]) ? 0 : cost_rep);
+        c1 = p1[i2 + 1] + cost_del;
+        if (c1 < c0) {
+          c0 = c1;
+        }
+        c2 = p2[i2] + cost_ins;
+        if (c2 < c0) {
+          c0 = c2;
+        }
+        p2[i2 + 1] = c0;
+      }
+      tmp = p1;
+      p1 = p2;
+      p2 = tmp;
+    }
+
+    return c0;
+  }
 }
