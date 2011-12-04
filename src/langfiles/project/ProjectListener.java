@@ -5,7 +5,7 @@ package langfiles.project;
  */
 public interface ProjectListener {
 
-    void projectAdded(Project project);
+  void projectAdded(Project project);
 
-    void projectRemoved(Project project);
+  void projectRemoved(Project project);
 }

@@ -9,11 +9,11 @@ import langfiles.util.SyncFile;
  */
 public interface CodeViewer {
 
-    /**
-     * Set the code that this viewer should show.
-     * @param digestedFile the digested file
-     */
-    void setCode(SyncFile syncFile);
+  /**
+   * Set the code that this viewer should show.
+   * @param syncFile the digested file
+   */
+  void setCode(SyncFile syncFile);
 
-    JComponent getGUI();
+  JComponent getGUI();
 }

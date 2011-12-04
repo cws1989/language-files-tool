@@ -261,7 +261,8 @@ public class CommonUtil {
   public static String mkdir(List<String> directoryPathList) {
     String succeedDirectoryPath = null;
     for (String directoryPath : directoryPathList) {
-      if (new File(directoryPath).mkdirs()) {
+      File directory = new File(directoryPath);
+      if (directory.isDirectory() || new File(directoryPath).mkdirs()) {
         succeedDirectoryPath = directoryPath;
         break;
       }

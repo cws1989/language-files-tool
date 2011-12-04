@@ -7,7 +7,7 @@ import langfiles.util.SyncFile;
  */
 public interface ProjectFileListener {
 
-    void projectFileAdded(SyncFile syncFile);
+  void projectFileAdded(SyncFile syncFile);
 
-    void projectFileRemoved(SyncFile syncFile);
+  void projectFileRemoved(SyncFile syncFile);
 }
