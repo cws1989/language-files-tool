@@ -1,6 +1,6 @@
 # Language Files Tool #
 
-## Language Files Tool is discontinued. ##
+> Language Files Tool is discontinued.
 
 ## Scenarios ##
   1. When you are doing a software and it's almost done, suddenly, your boss told you besides English, you have to support two more languages.
@@ -11,7 +11,7 @@
 You faced these problems? If you need more than [gettext](http://www.gnu.org/s/gettext/), I think this might be the one you need.
 
 ## Preview ##
-![https://raw.githubusercontent.com/cws1989/language-files-tool/wiki/ScreenShot.png](https://raw.githubusercontent.com/cws1989/language-files-tool/wiki/ScreenShot.png)
+![ScreenShot](https://raw.githubusercontent.com/cws1989/language-files-tool/wiki/ScreenShot.png)
 
 Icons by [Yusuke Kamiyamane](http://p.yusukekamiyamane.com/).
 
