@@ -1,6 +1,6 @@
 # Language Files Tool #
 
-## Java Prettify is discontinued. ##
+## Language Files Tool is discontinued. ##
 
 ## Scenarios ##
   1. When you are doing a software and it's almost done, suddenly, your boss told you besides English, you have to support two more languages.
