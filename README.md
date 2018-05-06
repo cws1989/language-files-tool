@@ -27,3 +27,6 @@ The software is still under development, view source: https://github.com/cws1989
 
 ## Support & Discussion ##
 [Support & Disscussion](http://groups.google.com/group/language-files-tool)
+
+## Google Project ##
+https://code.google.com/archive/p/language-files-tool
